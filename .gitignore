@@ -1,0 +1,22 @@
+# Build outputs
+build/
+target/
+.move/
+.movedb/
+
+# Dependencies
+.cache/
+.cargo/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Environment
+.env
+
+# Node.js (for frontend)
+node_modules/
