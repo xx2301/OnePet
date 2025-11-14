@@ -6,7 +6,7 @@ module OnePet::pet_factory {
     #[allow(unused_const)]
     const CAT: u8 = 1;
     const RABBIT: u8 = 2;
-    const HAMSTER: u8 = 2;
+    const HAMSTER: u8 = 3;
 
     public struct PetNFT has key, store {
         id: UID,
@@ -74,7 +74,7 @@ module OnePet::pet_factory {
     public entry fun level_up(pet: &mut PetNFT, exp_gained: u64) {
         pet.experience = pet.experience + exp_gained;
         
-        while (pet.experience >= pet.level * 100 && pet.level < 100) {
+        while (pet.experience >= pet.level * 100 && pet.level < 100) { //level 1 to level 2 need 100 exp
             pet.experience = pet.experience - (pet.level * 100);
             pet.level = pet.level + 1;
             pet.health = 100;
