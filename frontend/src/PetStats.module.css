@@ -1,0 +1,168 @@
+.page {
+  min-height: 100vh;
+  width: 100%;
+  font-family: Arial, sans-serif;
+  transition: background 0.4s, color 0.4s;
+}
+
+
+.dark {
+  background: linear-gradient(to bottom right, #3b0a91, #0b1a7a, #082c5c);
+  color: white;
+}
+
+.light {
+  background: linear-gradient(to bottom right, #e8d3ff, #d9eaff, #ffffff);
+  color: #222;
+}
+
+.container {
+  box-sizing: border-box;
+  display: flex;
+  font-family: 'Poppins', sans-serif;
+  padding:40px;
+  gap: 20px;
+}
+
+.petCard {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(170, 0, 255, 0.3);
+  border-radius: 20px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.petHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.content {
+  position: absolute;
+  background-color:lightblue;
+}
+.content a{
+  display: block;
+  text-decoration: none;
+  padding:20px;
+  border-bottom: 1px solid purple;
+
+}
+
+.hide a {
+  display: none;
+}
+
+.level {
+  background: lightblue;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.petImage {
+  width: 120px;
+  height: 120px;
+  margin: 20px 0;
+}
+
+.mood {
+  font-size: 1.2rem;
+  margin: 10px 0;
+}
+
+.xp {
+  color: #caaeff;
+  font-size: 0.9rem;
+}
+
+.tokenBox {
+  background: rgba(255, 255, 255, 0.1);
+  width: 100%;
+  border-radius: 10px;
+  text-align: center;
+  padding: 10px;
+  margin-top: 20px;
+}
+
+.tokenBox p {
+  font-weight: bold;
+}
+
+.statsPanel {
+  flex: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section {
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.barGroup {
+  margin: 10px 0;
+}
+
+.bar {
+  width: 100%;
+  height: 10px;
+  background: #333;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.fill {
+  height: 100%;
+  background: linear-gradient(to right, #8a2be2, #ff69b4);
+  transition: width 0.3s ease-in-out;
+}
+
+.percent {
+  float: right;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.actions button {
+  border: none;
+  border-radius: 12px;
+  padding: 15px;
+  font-size: 1rem;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s;
+}
+
+.actions button:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+.feed {
+  background: #d26c2a;
+}
+
+.play {
+  background: #d2b02a;
+}
+
+.sleep {
+  background: #2a9fd2;
+}
+

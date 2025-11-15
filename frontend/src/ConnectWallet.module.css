@@ -1,0 +1,47 @@
+.container {
+    background: linear-gradient(to bottom right, #3b0a91, #0b1a7a, #082c5c);
+    /* background-image: url("/background2.avif"); */
+    /* background-size:cover;
+    background-attachment:fixed;
+    background-repeat:no-repeat; */
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content: space-evenly;
+    align-items: center;
+}
+
+.welcome {
+    margin-top:50px;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color:white;
+    margin-bottom: 1rem;
+}
+
+.message {
+    color: grey;
+    margin-bottom: 2rem;
+    font-size:25px;
+    text-wrap:nowrap;
+} 
+
+img {
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+img:hover {
+  transform: scale(1.2);
+}
+
+.connect_wallet_button {
+    margin-bottom:50px;
+    padding:20px 40px;
+    border-radius:20px;
+    cursor:pointer;
+    background-color:green;
+    color:white;
+    font-size:30px;
+    font-weight:bold;
+}
