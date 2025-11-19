@@ -1,6 +1,6 @@
 module OnePet::profile_badge {
     use std::string;
-    
+
     public struct ProfileBadge has key {
         id: UID,
         username: string::String,

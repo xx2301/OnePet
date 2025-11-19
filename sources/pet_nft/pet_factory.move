@@ -1,3 +1,4 @@
+#[allow(unused_const)]
 module OnePet::pet_factory {
     use std::string;
     
