@@ -14,6 +14,11 @@ Move Contract API Reference
 - Let user to buy items
 - Parameters: item_id (1=ITEM_FOOD, 2=ITEM_TOY, 3=ITEM_DRINK, 4=ITEM MEDICINE), quantity (u64)
 
+## Inventory
+- It is the user inventory, let them to check what they had
+
 ## Error Codes
+- 405: Item not in inventory (inventory)
 - 404: Item not found (shop system)
 - 403: Invalid cost (shop system)
+- 402: Insuficient balance (shop system)

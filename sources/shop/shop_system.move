@@ -1,6 +1,11 @@
 module OnePet::shop_system {
+    use one::object;
+    use one::transfer;
+    use one::tx_context;
     use std::string;
     //use one::event;
+    use OnePet::inventory;
+    use OnePet::inventory::PlayerInventory;
 
     const ITEM_FOOD: u64 = 0;
     const ITEM_TOY: u64 = 1;
@@ -8,8 +13,7 @@ module OnePet::shop_system {
     const ITEM_MEDICINE: u64 = 3;
     const EITEM_NOT_FOUND: u64 = 404;
     const EINVALID_QUAN_COST: u64 = 403; 
-    const EINSUFFICIENT_BALANCE: u64 = 402;
-
+    //const EINSUFFICIENT_BALANCE: u64 = 402;
     
     public struct ItemPurchased has copy, drop {
         buyer: address,
@@ -81,8 +85,10 @@ module OnePet::shop_system {
         &inventory.items
     }
     
-    public entry fun buy_item(shop: &mut Shop, player_inventory: &mut PlayerInventory, item_id: u64, quantity: u64, ctx: &mut TxContext) {
+    public entry fun buy_item(shop: &mut ShopInventory, player_inventory: &mut PlayerInventory, item_id: u64, quantity: u64, ctx: &mut TxContext) {
         let buyer = tx_context::sender(ctx);
+        assert!(quantity > 0, EINVALID_QUAN_COST);
+
         let items = get_shop_items(shop);
         let mut total_cost: u64 = 0;
         let mut item_found = false;
@@ -100,8 +106,16 @@ module OnePet::shop_system {
         
         assert!(item_found, EITEM_NOT_FOUND); //if item not found will abort the transaction
         assert!(total_cost > 0, EINVALID_QUAN_COST); //if item quantity is 0 or total cost less than 0 will abort too
+
+        /*wait to find the way of pet_token 
         assert!(token::balance(buyer) >= total_cost, EINSUFFICIENT_BALANCE); //user balance not enough to buy_item
-        token::transfer(buyer, shop.owner, total_cost, ctx);
+        pet_token::transfer_from_user_to_shop(buyer, get_shop_owner(shop), total_cost, ctx);*/
+
+        let mut j = 0;
+        while (j < quantity) {
+            inventory::add_item(player_inventory, item_id);
+            j = j + 1;
+        };
 
         //if can't find the actual event library path don't send out this event also can
         /*event::emit(ItemPurchased {
@@ -116,15 +130,15 @@ module OnePet::shop_system {
     #[test]
     fun test_shop_items() {
         let mut ctx = tx_context::dummy();
-        let mut inventory = ShopInventory {
+        
+        let mut shop = ShopInventory {
             id: object::new(&mut ctx),
             items: vector::empty<ShopItem>()
         };
         
-        let items = get_shop_items(&inventory);
-        assert!(vector::length(items) == 0, 1);
-
-        vector::push_back(&mut inventory.items, ShopItem {
+        let mut player_inventory = inventory::create_test_inventory(@0x0, &mut ctx);
+        
+        vector::push_back(&mut shop.items, ShopItem {
             item_id: 1,
             item_type: ITEM_FOOD,
             name: string::utf8(b"Test Food"),
@@ -133,23 +147,32 @@ module OnePet::shop_system {
             effect_description: string::utf8(b"+10 Hunger")
         });
         
-        buy_item(&mut inventory, 1, 1, &mut ctx);
+        buy_item(&mut shop, &mut player_inventory, 1, 2, &mut ctx);
 
-        //testing needed 
-        transfer::transfer(inventory, @0x0); 
+        let items = inventory::get_inventory_items(&player_inventory);
+        assert!(vector::length(items) == 2, 1);
+        assert!(*vector::borrow(items, 0) == 1, 2);
+        assert!(*vector::borrow(items, 1) == 1, 3);
+        
+        transfer::transfer(shop, @0x0);
+        inventory::transfer_test_inventory(player_inventory, @0x0);
     }
     
     #[test]
-    #[expected_failure(abort_code = 404)]
-    fun test_buy_emptyitem() {
+    #[expected_failure(abort_code = EITEM_NOT_FOUND)]
+    fun test_buy_nonexistent_item() {
         let mut ctx = tx_context::dummy();
-        let mut inventory = ShopInventory {
+        
+        let mut shop = ShopInventory {
             id: object::new(&mut ctx),
             items: vector::empty<ShopItem>()
         };
 
-        buy_item(&mut inventory, 999, 1, &mut ctx);
+        let mut player_inventory = inventory::create_test_inventory(@0x0, &mut ctx);
+
+        buy_item(&mut shop, &mut player_inventory, 999, 1, &mut ctx);
         
-        transfer::transfer(inventory, @0x0);
+        transfer::transfer(shop, @0x0);
+        inventory::transfer_test_inventory(player_inventory, @0x0);
     }
 }

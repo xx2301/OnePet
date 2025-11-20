@@ -1,5 +1,5 @@
 #[allow(unused_const)]
-module OnePet::pet_factory {
+module OnePet::pet_stats {
     use std::string;
     
     #[allow(unused_const)]
@@ -85,10 +85,10 @@ module OnePet::pet_factory {
         pet.energy = pet.energy + 10;
         if (pet.hunger > 100){
             pet.hunger = 100;
-        }
+        };
         if (pet.energy > 100){
             pet.energy = 100;
-        }
+        };
     }
 
     public entry fun play_pet(pet: &mut PetNFT){
@@ -96,10 +96,10 @@ module OnePet::pet_factory {
         pet.energy = pet.energy - 10;
         if (pet.happiness > 100){
             pet.happiness = 100;
-        }
+        };
         if (pet.energy < 0){
             pet.energy = 0;
-        }
+        };
     }
 
     public entry fun sleep_pet(pet: &mut PetNFT){
@@ -107,7 +107,7 @@ module OnePet::pet_factory {
         pet.energy = 100;
         if (pet.happiness < 0){
             pet.happiness = 0;
-        }
+        };
     }
 
     #[test]
