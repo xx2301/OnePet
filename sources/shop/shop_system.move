@@ -6,6 +6,10 @@ module OnePet::shop_system {
     const ITEM_TOY: u64 = 1;
     const ITEM_DRINK: u64 = 2;
     const ITEM_MEDICINE: u64 = 3;
+    const EITEM_NOT_FOUND: u64 = 404;
+    const EINVALID_QUAN_COST: u64 = 403; 
+    const EINSUFFICIENT_BALANCE: u64 = 402;
+
     
     public struct ItemPurchased has copy, drop {
         buyer: address,
@@ -77,9 +81,9 @@ module OnePet::shop_system {
         &inventory.items
     }
     
-    public entry fun buy_item(inventory: &mut ShopInventory, item_id: u64, quantity: u64, ctx: &mut TxContext) {
+    public entry fun buy_item(shop: &mut Shop, player_inventory: &mut PlayerInventory, item_id: u64, quantity: u64, ctx: &mut TxContext) {
         let buyer = tx_context::sender(ctx);
-        let items = get_shop_items(inventory);
+        let items = get_shop_items(shop);
         let mut total_cost: u64 = 0;
         let mut item_found = false;
         
@@ -94,9 +98,11 @@ module OnePet::shop_system {
             i = i + 1;
         };
         
-        assert!(item_found, 404); //if item not found will abort the transaction
-        assert!(total_cost > 0, 403); //if item quantity is 0 or total cost less than 0 will abort too
-        
+        assert!(item_found, EITEM_NOT_FOUND); //if item not found will abort the transaction
+        assert!(total_cost > 0, EINVALID_QUAN_COST); //if item quantity is 0 or total cost less than 0 will abort too
+        assert!(token::balance(buyer) >= total_cost, EINSUFFICIENT_BALANCE); //user balance not enough to buy_item
+        token::transfer(buyer, shop.owner, total_cost, ctx);
+
         //if can't find the actual event library path don't send out this event also can
         /*event::emit(ItemPurchased {
         buyer,

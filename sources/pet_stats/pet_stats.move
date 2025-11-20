@@ -18,6 +18,7 @@ module OnePet::pet_factory {
         health: u64,
         hunger: u64,
         happiness: u64,
+        energy: u64,
         owner: address,
         created_at: u64
     }
@@ -33,11 +34,7 @@ module OnePet::pet_factory {
     const EInvalidPetType: u64 = 1;
     const ENameTooLong: u64 = 2;
 
-    public entry fun create_pet(
-        name: vector<u8>,
-        pet_type: u8,
-        ctx: &mut TxContext
-    ) {
+    public entry fun create_pet(name: vector<u8>, pet_type: u8, ctx: &mut TxContext) {
         assert!(pet_type <= HAMSTER, EInvalidPetType);
         assert!(vector::length(&name) <= 20, ENameTooLong);
 
@@ -53,6 +50,7 @@ module OnePet::pet_factory {
             health: 100,
             hunger: 50,
             happiness: 50,
+            energy: 100,
             owner: sender,
             created_at: tx_context::epoch(ctx)
         };
@@ -80,6 +78,36 @@ module OnePet::pet_factory {
             pet.level = pet.level + 1;
             pet.health = 100;
         };
+    }
+
+    public entry fun feed_pet(pet: &mut PetNFT){
+        pet.hunger = pet.hunger + 30;
+        pet.energy = pet.energy + 10;
+        if (pet.hunger > 100){
+            pet.hunger = 100;
+        }
+        if (pet.energy > 100){
+            pet.energy = 100;
+        }
+    }
+
+    public entry fun play_pet(pet: &mut PetNFT){
+        pet.happiness = pet.happiness + 25;
+        pet.energy = pet.energy - 10;
+        if (pet.happiness > 100){
+            pet.happiness = 100;
+        }
+        if (pet.energy < 0){
+            pet.energy = 0;
+        }
+    }
+
+    public entry fun sleep_pet(pet: &mut PetNFT){
+        pet.happiness = pet.happiness - 10;
+        pet.energy = 100;
+        if (pet.happiness < 0){
+            pet.happiness = 0;
+        }
     }
 
     #[test]
