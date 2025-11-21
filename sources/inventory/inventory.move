@@ -1,19 +1,21 @@
+#[allow(unused_const)]
 module OnePet::inventory {
-    use one::object::{Self, UID};
-    use one::transfer;
-    use one::tx_context::{Self, TxContext};
     use std::vector;
+    
+    use one::object;
+    use one::transfer;
+    use one::tx_context;
 
     const EITEM_NOT_IN_INVENTORY: u64 = 405;
 
     public struct PlayerInventory has key {
-        id: UID,
+        id: object::UID,
         owner: address,
-        items: vector<u64>, //store item id
+        items: vector<u64>,
         created_at: u64
     }
     
-    public fun init_inventory(ctx: &mut TxContext) {
+    public fun init_inventory(ctx: &mut tx_context::TxContext) {
         let inventory = PlayerInventory {
             id: object::new(ctx),
             owner: tx_context::sender(ctx),
@@ -34,11 +36,11 @@ module OnePet::inventory {
     public entry fun remove_item(inventory: &mut PlayerInventory, item_id: u64) {
         let index = find_item_index(&inventory.items, item_id);
         let length = vector::length(&inventory.items);
-        assert!(index < length, EITEM_NOT_IN_INVENTORY); //之前是!= -1, but this also bool what?
+        assert!(index < length, EITEM_NOT_IN_INVENTORY);
         vector::remove(&mut inventory.items, index);
     }
 
-    public fun has_item(inventory: &PlayerInventory, item_id: u64): bool{
+    public fun has_item(inventory: &PlayerInventory, item_id: u64): bool {
         let index = find_item_index(&inventory.items, item_id);
         let length = vector::length(&inventory.items);
         index < length

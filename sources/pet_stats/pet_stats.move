@@ -1,16 +1,31 @@
 #[allow(unused_const)]
 module OnePet::pet_stats {
     use std::string;
+    use std::vector;
     
-    #[allow(unused_const)]
+    use one::object;
+    use one::transfer;
+    use one::tx_context;
+    use one::coin;
+    use one::oct;
+
+    use OnePet::cooldown_system;
+
     const DOG: u8 = 0;
-    #[allow(unused_const)]
     const CAT: u8 = 1;
     const RABBIT: u8 = 2;
     const HAMSTER: u8 = 3;
 
+    const EInvalidPetType: u64 = 406;
+    const ENameTooLong: u64 = 407;
+    const EINSUFFICIENT_BALANCE: u64 = 408;
+    const EALREADY_HAS_PET: u64 = 409;
+    const ECOOLDOWN_NOT_READY: u64 = 410;
+
+    const PET_PRICE: u64 = 50_000_000;
+
     public struct PetNFT has key, store {
-        id: UID,
+        id: object::UID,
         name: string::String,
         pet_type: u8,
         level: u64,
@@ -23,24 +38,76 @@ module OnePet::pet_stats {
         created_at: u64
     }
     
+    public struct UserState has key {
+        id: object::UID,
+        has_created_first_pet: bool
+    }
+        
     #[allow(unused_field)]
     public struct PetCreated has copy, drop {
-        pet_id: ID,
+        pet_id: object::ID,
         owner: address,
         name: string::String,
         pet_type: u8
     }
 
-    const EInvalidPetType: u64 = 1;
-    const ENameTooLong: u64 = 2;
+    public entry fun init_user_state(ctx: &mut tx_context::TxContext) {
+        let sender = tx_context::sender(ctx);
+        let user_state = UserState {
+            id: object::new(ctx),
+            has_created_first_pet: false
+        };
+        transfer::transfer(user_state, sender);
+    }
 
-    public entry fun create_pet(name: vector<u8>, pet_type: u8, ctx: &mut TxContext) {
+    public entry fun create_pet(user_state: &mut UserState,name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, ctx: &mut tx_context::TxContext) {
+        let sender = tx_context::sender(ctx);
+        
+        if (user_state.has_created_first_pet) {
+            create_paid_pet(name, pet_type, payment, ctx);
+        } else {
+            create_free_pet(user_state, name, pet_type, ctx);
+        }
+    }
+
+    fun create_free_pet(user_state: &mut UserState, name: vector<u8>, pet_type: u8, ctx: &mut tx_context::TxContext) {
+        let sender = tx_context::sender(ctx);
+        
         assert!(pet_type <= HAMSTER, EInvalidPetType);
         assert!(vector::length(&name) <= 20, ENameTooLong);
 
-        let sender = tx_context::sender(ctx);
         let pet_name = string::utf8(name);
         
+        let pet = PetNFT {
+            id: object::new(ctx),
+            name: pet_name,
+            pet_type: pet_type,
+            level: 1,
+            experience: 0,
+            health: 100,
+            hunger: 50,
+            happiness: 50,
+            energy: 100,
+            owner: sender,
+            created_at: tx_context::epoch(ctx)
+        };
+
+        user_state.has_created_first_pet = true;
+        transfer::transfer(pet, sender);
+    }
+
+    fun create_paid_pet(name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, ctx: &mut tx_context::TxContext) {
+        let sender = tx_context::sender(ctx);
+        
+        assert!(pet_type <= HAMSTER, EInvalidPetType);
+        assert!(vector::length(&name) <= 20, ENameTooLong);
+        assert!(coin::value(payment) >= PET_PRICE, EINSUFFICIENT_BALANCE);
+        
+        let payment_amount = coin::split(payment, PET_PRICE, ctx);
+        transfer::public_freeze_object(payment_amount);
+        
+        let pet_name = string::utf8(name);
+
         let pet = PetNFT {
             id: object::new(ctx),
             name: pet_name,
@@ -58,6 +125,17 @@ module OnePet::pet_stats {
         transfer::transfer(pet, sender);
     }
 
+    // for frontend
+    public entry fun create_first_pet(user_state: &mut UserState, name: vector<u8>, pet_type: u8, ctx: &mut tx_context::TxContext) {
+        assert!(!user_state.has_created_first_pet, EALREADY_HAS_PET); 
+        create_free_pet(user_state, name, pet_type, ctx);
+    }
+
+    // for frontend
+    public entry fun create_additional_pet(name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, ctx: &mut tx_context::TxContext) {
+        create_paid_pet(name, pet_type, payment, ctx);
+    }
+
     public fun get_level(pet: &PetNFT): u64 {
         pet.level
     }
@@ -73,49 +151,154 @@ module OnePet::pet_stats {
     public entry fun level_up(pet: &mut PetNFT, exp_gained: u64) {
         pet.experience = pet.experience + exp_gained;
         
-        while (pet.experience >= pet.level * 100 && pet.level < 100) { //level 1 to level 2 need 100 exp
+        while (pet.experience >= pet.level * 100 && pet.level < 100) {
             pet.experience = pet.experience - (pet.level * 100);
             pet.level = pet.level + 1;
             pet.health = 100;
         };
     }
 
-    public entry fun feed_pet(pet: &mut PetNFT){
+    public entry fun feed_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown,ctx: &mut tx_context::TxContext) {
+        let current_time = tx_context::epoch(ctx);
+        assert!(cooldown_system::can_feed(cooldown, current_time), ECOOLDOWN_NOT_READY);
+        
+        cooldown_system::update_feed(cooldown, current_time);
+        
         pet.hunger = pet.hunger + 30;
         pet.energy = pet.energy + 10;
-        if (pet.hunger > 100){
+        if (pet.hunger > 100) {
             pet.hunger = 100;
         };
-        if (pet.energy > 100){
+        if (pet.energy > 100) {
             pet.energy = 100;
         };
     }
 
-    public entry fun play_pet(pet: &mut PetNFT){
+    public entry fun play_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown, ctx: &mut tx_context::TxContext) {
+        let current_time = tx_context::epoch(ctx);
+        assert!(cooldown_system::can_play(cooldown, current_time), 410);
+        
+        cooldown_system::update_play(cooldown, current_time);
+
         pet.happiness = pet.happiness + 25;
         pet.energy = pet.energy - 10;
-        if (pet.happiness > 100){
+        if (pet.happiness > 100) {
             pet.happiness = 100;
         };
-        if (pet.energy < 0){
+        if (pet.energy < 0) {
             pet.energy = 0;
         };
     }
 
-    public entry fun sleep_pet(pet: &mut PetNFT){
+    public entry fun sleep_pet(pet: &mut PetNFT) {
         pet.happiness = pet.happiness - 10;
         pet.energy = 100;
-        if (pet.happiness < 0){
+        if (pet.happiness < 0) {
             pet.happiness = 0;
         };
     }
 
+    #[test_only]
+    public fun create_test_user_state(owner: address, ctx: &mut tx_context::TxContext): UserState {
+        UserState {
+            id: object::new(ctx),
+            has_created_first_pet: false
+        }
+    }
+
+    #[test_only]
+    public fun create_test_pet(
+        owner: address,
+        level: u64,
+        health: u64,
+        _attack: u64,
+        ctx: &mut tx_context::TxContext
+    ): PetNFT {
+        PetNFT {
+            id: object::new(ctx),
+            name: string::utf8(b"TestPet"),
+            pet_type: CAT,
+            level: level,
+            experience: 0,
+            health: health,
+            hunger: 50,
+            happiness: 50,
+            energy: 100,
+            owner: owner,
+            created_at: 0
+        }
+    }
+
+    #[test_only]
+    public fun transfer_test_pet(pet: PetNFT, recipient: address) {
+        transfer::transfer(pet, recipient);
+    }
+
+    #[test_only]
+    public fun set_pet_level(pet: &mut PetNFT, level: u64) {
+        pet.level = level;
+    }
+
+    #[test_only] 
+    public fun set_pet_health(pet: &mut PetNFT, health: u64) {
+        pet.health = health;
+    }
+
     #[test]
-    fun test_create_pet() {
+    fun test_create_pet_free_first_then_paid() {
         let mut ctx = tx_context::dummy();
-        create_pet(b"Fluffy", CAT, &mut ctx);
-        create_pet(b"Buddy", DOG, &mut ctx);
-        create_pet(b"Sparky", RABBIT, &mut ctx);
-        create_pet(b"Poppy", HAMSTER, &mut ctx);
+        let sender = tx_context::sender(&ctx);
+        
+        let mut user_state = create_test_user_state(sender, &mut ctx);
+        let mut payment = coin::mint_for_testing<oct::OCT>(100_000_000, &mut ctx);
+        
+        create_pet(&mut user_state, b"FirstPet", CAT, &mut payment, &mut ctx);
+        
+        assert!(coin::value(&payment) == 100_000_000, 1);
+        
+        create_pet(&mut user_state, b"SecondPet", DOG, &mut payment, &mut ctx);
+        
+        assert!(coin::value(&payment) == 50_000_000, 2); //100m-50m=50m
+        
+        coin::burn_for_testing(payment);
+        transfer::transfer(user_state, @0x0);
+    }
+
+    #[test]
+    fun test_create_first_pet() {
+        let mut ctx = tx_context::dummy();
+        let sender = tx_context::sender(&ctx);
+        
+        let mut user_state = create_test_user_state(sender, &mut ctx);
+        create_first_pet(&mut user_state, b"Fluffy", CAT, &mut ctx);
+
+        assert!(user_state.has_created_first_pet, 1);
+        transfer::transfer(user_state, @0x0);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = EALREADY_HAS_PET)]
+    fun test_cannot_create_second_free_pet() {
+        let mut ctx = tx_context::dummy();
+        let sender = tx_context::sender(&ctx);
+        
+        let mut user_state = create_test_user_state(sender, &mut ctx);
+        create_first_pet(&mut user_state, b"FirstPet", CAT, &mut ctx);
+        {
+            create_first_pet(&mut user_state, b"SecondPet", DOG, &mut ctx); //this will failed as i put in the {}
+        };
+        transfer::transfer(user_state, @0x0);
+    }
+
+    #[test]
+    fun test_create_additional_pet() {
+        let mut ctx = tx_context::dummy();
+        
+        let mut payment = coin::mint_for_testing<oct::OCT>(100_000_000, &mut ctx);
+        create_additional_pet(b"PaidPet", DOG, &mut payment, &mut ctx);
+        
+        assert!(coin::value(&payment) == 50_000_000, 1); //100m-50m=50m
+        
+        coin::burn_for_testing(payment);
     }
 }
