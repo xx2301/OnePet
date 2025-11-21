@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Header from "./Header";
 import styles from "./PetStats.module.css";
 
-export default function PetStats({darkMode, setDarkMode}) {
+export default function PetStats({ darkMode, setDarkMode }) {
   const [stats, setStats] = useState([
     { text: 'Happiness', value: 50 },
     { text: 'Hunger', value: 30 },
@@ -13,27 +13,45 @@ export default function PetStats({darkMode, setDarkMode}) {
 
   //demo logic only
   const feed = () => {
-    setStats((s) => ({
-      ...s,
-      hunger: Math.min(s.hunger + 30, 100),
-      energy: Math.min(s.energy + 10, 100),
-    }));
+    setStats((s) =>
+      s.map((stat) => {
+        if (stat.text === "Hunger") {
+          return { ...stat, value: Math.min(stat.value + 30, 100) };
+        }
+        if (stat.text === "Energy") {
+          return { ...stat, value: Math.min(stat.value + 10, 100) };
+        }
+        return stat;
+      })
+    );
   };
 
   const play = () => {
-    setStats((s) => ({
-      ...s,
-      happiness: Math.min(s.happiness + 25, 100),
-      energy: Math.max(s.energy - 10, 0),
-    }));
+    setStats((s) =>
+      s.map((stat) => {
+        if (stat.text === "Happiness") {
+          return { ...stat, value: Math.min(stat.value + 25, 100) };
+        }
+        if (stat.text === "Energy") {
+          return { ...stat, value: Math.max(stat.value - 10, 0) };
+        }
+        return stat;
+      })
+    );
   };
 
   const sleep = () => {
-    setStats((s) => ({
-      ...s,
-      energy: 100,
-      happiness: Math.max(s.happiness - 10, 0),
-    }));
+    setStats((s) =>
+      s.map((stat) => {
+        if (stat.text === "Energy") {
+          return { ...stat, value: 100 };
+        }
+        if (stat.text === "Happiness") {
+          return { ...stat, value: Math.max(stat.value - 10, 0) };
+        }
+        return stat;
+      })
+    );
   };
 
   const [open, setOpen] = useState(false);
@@ -42,20 +60,19 @@ export default function PetStats({darkMode, setDarkMode}) {
       <Header darkMode={darkMode} setDarkMode={setDarkMode} />
       <div className={styles.container}>
         <div className={styles.petCard}>
-
           <div className={styles.petHeader}>
             <div>
-              <button style={{backgroundColor:"transparent", border:"none"}} onClick={()=>setOpen(!open)}>
+              <button style={{ backgroundColor: "transparent", border: "none" }} onClick={() => setOpen(!open)}>
                 <img src="/img/Hamburger_icon.png" width="30px"></img>
               </button>
-              <div className={open?styles.content:styles.hide}>
+              <div className={open ? styles.content : styles.hide}>
                 <Link to="/Shop">Shop</Link>
-                <Link>Daily Spin</Link>
+                <Link to="/Spin">Daily Spin</Link>
                 <Link>Battle</Link>
               </div>
             </div>
 
-            <h2>Chip</h2> 
+            <h2>Chip</h2>
             <span className={styles.level}>Lv.1</span>
           </div>
 

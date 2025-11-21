@@ -4,6 +4,7 @@ import ConnectWallet from "./ConnectWallet";
 import HomePage from "./HomePage";
 import PetStats from "./PetStats";
 import Shop from "./Shop";
+import Spin from "./Spin";
 export default function App(){
   const [darkMode, setDarkMode] = useState(true);
   const [tokenBalance, setTokenBalance] = useState(100);
@@ -14,6 +15,7 @@ export default function App(){
       <Route path="/HomePage" element={<HomePage darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
       <Route path="/PetStats" element={<PetStats darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
       <Route path="/Shop" element={<Shop tokenBalance={tokenBalance} setTokenBalance={setTokenBalance} inventory={inventory} setInventory={setInventory}/>}></Route>
+      <Route path="/Spin" element={<Spin />}></Route>
     </Routes>
   );
 }
