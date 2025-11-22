@@ -53,24 +53,29 @@ export default function Spin() {
     // pick random slice
     const index = Math.floor(Math.random() * rewards.length);
 
-    // 6 full rotations (clockwise)
-    const baseSpins = 360 * 6;
+    // how many extra full rotations to perform before landing
+    const extraRotations = 6; // full spins for visual effect
 
-    // center of slice
+    // center angle of the chosen slice (degrees)
     const sliceCenter = index * sliceAngle + sliceAngle / 2;
 
-    // move sliceCenter to pointer (0°) in clockwise direction
-    const landedAngle = 360 - sliceCenter;
+    // compute angle so that the sliceCenter comes to the pointer (top)
+    // depending on orientation of the wheel the pointer aligns at 0deg,
+    // so we rotate by (360 - sliceCenter) degrees within the final turn
+    const landedAngle = (360 - sliceCenter) % 360;
 
-    // negative = clockwise rotation
-    const finalAngle = (baseSpins + landedAngle);
+    // ensure final angle is > current angle so animation always spins forward
+    const currentTurns = Math.floor(angle / 360);
+    const finalAngle = (currentTurns + extraRotations) * 360 + landedAngle;
+
     setAngle(finalAngle);
 
     // match transition duration in CSS (3.8s)
+    const durationMs = 3800;
     setTimeout(() => {
       setSpinning(false);
       setResult(rewards[index]);
-    }, 3800);
+    }, durationMs);
   };
 
   return (
