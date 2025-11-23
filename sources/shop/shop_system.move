@@ -93,7 +93,7 @@ module OnePet::shop_system {
         &inventory.items
     }
     
-    public entry fun buy_item(shop: &mut ShopInventory, player_inventory: &mut PlayerInventory, item_id: u64, quantity: u64, payment: &mut coin::Coin<oct::OCT>, ctx: &mut tx_context::TxContext) {
+    public entry fun buy_item(shop: &mut ShopInventory, player_inventory: &mut PlayerInventory, item_id: u64, quantity: u64, payment: &mut coin::Coin<oct::OCT>, global_stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext) {
         assert!(quantity > 0, EINVALID_QUAN_COST);
 
         let items = get_shop_items(shop);
@@ -123,6 +123,7 @@ module OnePet::shop_system {
             inventory::add_item(player_inventory, item_id);
             j = j + 1;
         };
+        stat_system::record_item_purchase(global_stats, quantity);
     }
     
     #[test]

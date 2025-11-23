@@ -145,6 +145,8 @@ Move Contract API Reference
 - Record the number of battle in system
 
 ## Error Codes
+- 1: Username too long (profile badge)
+- 2: Username empty (profile badge)
 - 400: Incorrect balance calculation after payment (shop system)
 - 402: Insuficient balance (shop system)
 - 403: Invalid cost/quantity (shop system)

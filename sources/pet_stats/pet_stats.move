@@ -8,6 +8,7 @@ module OnePet::pet_stats {
     use one::tx_context;
     use one::coin;
     use one::oct;
+    use one::clock::Clock;
 
     use OnePet::cooldown_system;
 
@@ -21,6 +22,7 @@ module OnePet::pet_stats {
     const EINSUFFICIENT_BALANCE: u64 = 408;
     const EALREADY_HAS_PET: u64 = 409;
     const ECOOLDOWN_NOT_READY: u64 = 410;
+    const ENOUGH_DRINK: u64 = 411;
 
     const PET_PRICE: u64 = 50_000_000;
 
@@ -158,10 +160,13 @@ module OnePet::pet_stats {
         };
     }
 
-    public entry fun feed_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown,ctx: &mut tx_context::TxContext) {
-        let current_time = tx_context::epoch(ctx);
+    public entry fun feed_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown, inventory: &mut inventory::PlayerInventory, global_stats: &mut stat_system::GlobalStats, clock: &Clock, ctx: &mut tx_context::TxContext) {
+        let current_time = one::clock::timestamp_ms(clock);
         assert!(cooldown_system::can_feed(cooldown, current_time), ECOOLDOWN_NOT_READY);
         
+        assert!(inventory::has_item(inventory, 1), ENOUGH_FOOD);
+        inventory::remove_item(inventory, 1);
+
         cooldown_system::update_feed(cooldown, current_time);
         
         pet.hunger = pet.hunger + 30;
@@ -174,8 +179,8 @@ module OnePet::pet_stats {
         };
     }
 
-    public entry fun play_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown, ctx: &mut tx_context::TxContext) {
-        let current_time = tx_context::epoch(ctx);
+    public entry fun play_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown, global_stats: &mut stat_system::GlobalStats, clock: &Clock, ctx: &mut tx_context::TxContext) {
+        let current_time = one::clock::timestamp_ms(clock);
         assert!(cooldown_system::can_play(cooldown, current_time), 410);
         
         cooldown_system::update_play(cooldown, current_time);
@@ -190,7 +195,31 @@ module OnePet::pet_stats {
         };
     }
 
-    public entry fun sleep_pet(pet: &mut PetNFT) {
+    public entry fun drink_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown, inventory: &mut inventory::PlayerInventory, global_stats: &mut stat_system::GlobalStats, clock: &Clock, ctx: &mut tx_context::TxContext) {
+        let current_time = one::clock::timestamp_ms(clock);
+        assert!(cooldown_system::can_drink(cooldown, current_time), ECOOLDOWN_NOT_READY);
+        
+        assert!(inventory::has_item(inventory, 3), ENOUGH_DRINK);
+        inventory::remove_item(inventory, 3);
+        
+        cooldown_system::update_drink(cooldown, current_time);
+        
+        pet.happiness = pet.happiness + 20;
+        pet.energy = pet.energy + 15;
+        pet.health = pet.health + 5;
+        
+        if (pet.happiness > 100) {
+            pet.happiness = 100;
+        };
+        if (pet.energy > 100) {
+            pet.energy = 100;
+        };
+        if (pet.health > 100) {
+            pet.health = 100;
+        };
+    }
+
+    public entry fun sleep_pet(pet: &mut PetNFT, global_stats: &mut stat_system::GlobalStats,) {
         pet.happiness = pet.happiness - 10;
         pet.energy = 100;
         if (pet.happiness < 0) {

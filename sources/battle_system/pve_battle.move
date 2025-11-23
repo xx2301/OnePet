@@ -22,7 +22,8 @@ module OnePet::pve_battle {
         name: string::String
     }
     
-    public entry fun create_monster_based_on_pet_level(pet_level: u64, name: vector<u8>, ctx: &mut tx_context::TxContext) {
+    public entry fun create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut tx_context::TxContext) {
+        let pet_level = pet_stats::get_level(pet);
         let min_level = if (pet_level > 3) pet_level - 2 else 1;
         let max_level = pet_level + 2;
         create_monster(min_level, max_level, name, ctx);
