@@ -1,10 +1,12 @@
 import { Link } from "react-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./HomePage.module.css";
 import Header from "./Header";
 
 export default function HomePage({darkMode, setDarkMode}) {
   const [ownedPets, setOwnedPets] = useState([]);
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [suiBalance, setSuiBalance] = useState(null);
   const pets = [
     { name: "Cat", emoji: "🐱", description: "Calm and curious. Loves naps and quiet."},
     { name: "Dog", emoji: "🐶", description: "Loyal and playful. Always ready to explore."},
@@ -15,6 +17,51 @@ export default function HomePage({darkMode, setDarkMode}) {
   const handleAdopt = () => {
     // TODO: Replace with actual mint transaction logic
   };
+
+  const SUI_RPC = "https://rpc-testnet.onelabs.cc:443";
+
+  const fetchBalancesRpc = async (addr) => {
+    if (!addr) return null;
+    try {
+      const res = await fetch(SUI_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sui_getAllBalances", params: [addr] }),
+      });
+      const data = await res.json();
+      const balances = data?.result || [];
+      if (!Array.isArray(balances) || balances.length === 0) return null;
+      const suiCoin = balances.find((b) => b.coinType && b.coinType.includes("SUI"));
+      const target = suiCoin || balances[0];
+      const raw = Number(target.totalBalance || 0);
+      const human = raw / 1e9;
+      return { raw, human };
+    } catch (e) {
+      console.warn("Failed to fetch balances", e);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const addr = localStorage.getItem('suiAddress');
+    if (addr) {
+      setWalletAddress(addr);
+      fetchBalancesRpc(addr).then((b) => { if (b) setSuiBalance(b); });
+    }
+    const onStorage = (e) => {
+      if (e.key === 'suiAddress') {
+        if (!e.newValue) {
+          setWalletAddress(null);
+          setSuiBalance(null);
+        } else {
+          setWalletAddress(e.newValue);
+          fetchBalancesRpc(e.newValue).then((b) => { if (b) setSuiBalance(b); });
+        }
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   return (
     <div className={`${styles.page} ${darkMode ? styles.dark : styles.light}`}>
@@ -46,9 +93,9 @@ export default function HomePage({darkMode, setDarkMode}) {
         </div>
 
         <div className={styles.footer}>
-          <p>🎡 Daily free spin</p>  
-          <p>🎮 Play to Earn</p> 
-          <p>⚔️ Battle other pets</p> 
+          <p>🎡 Daily free spin</p>
+          <p>🎮 Play to Earn</p>
+          <p>⚔️ Battle other pets</p>
         </div>
       </section>
     </div>

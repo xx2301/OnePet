@@ -68,7 +68,7 @@ export default function PetStats({ darkMode, setDarkMode }) {
               <div className={open ? styles.content : styles.hide}>
                 <Link to="/Shop">Shop</Link>
                 <Link to="/Spin">Daily Spin</Link>
-                <Link>Battle</Link>
+                <Link to="/Battle">Battle</Link>
               </div>
             </div>
 
