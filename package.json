@@ -1,5 +1,11 @@
 {
   "dependencies": {
+    "@mysten/dapp-kit": "^0.19.9",
+    "@mysten/sui.js": "^0.54.1",
+    "@onelabs/wallet": "^1.0.1",
     "framer-motion": "^12.23.24"
+  },
+  "devDependencies": {
+    "@mysten/sui": "^1.45.0"
   }
 }
