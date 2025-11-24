@@ -65,17 +65,17 @@ module OnePet::pet_stats {
         transfer::transfer(user_state, sender);
     }
 
-    public entry fun create_pet(user_state: &mut UserState,name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, ctx: &mut tx_context::TxContext) {
+    public entry fun create_pet(user_state: &mut UserState,name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, global_stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext) {
         let sender = tx_context::sender(ctx);
         
         if (user_state.has_created_first_pet) {
-            create_paid_pet(name, pet_type, payment, ctx);
+            create_paid_pet(name, pet_type, payment, global_stats, ctx);
         } else {
-            create_free_pet(user_state, name, pet_type, ctx);
+            create_free_pet(user_state, name, pet_type, global_stats, ctx);
         }
     }
 
-    fun create_free_pet(user_state: &mut UserState, name: vector<u8>, pet_type: u8, ctx: &mut tx_context::TxContext) {
+    fun create_free_pet(user_state: &mut UserState, name: vector<u8>, pet_type: u8, global_stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext) {
         let sender = tx_context::sender(ctx);
         
         assert!(pet_type <= HAMSTER, EInvalidPetType);
@@ -98,10 +98,11 @@ module OnePet::pet_stats {
         };
 
         user_state.has_created_first_pet = true;
+        stat_system::record_pet_creation(global_stats);
         transfer::transfer(pet, sender);
     }
 
-    fun create_paid_pet(name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, ctx: &mut tx_context::TxContext) {
+    fun create_paid_pet(name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, global_stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext) {
         let sender = tx_context::sender(ctx);
         
         assert!(pet_type <= HAMSTER, EInvalidPetType);
@@ -127,18 +128,19 @@ module OnePet::pet_stats {
             created_at: tx_context::epoch(ctx)
         };
 
+        stat_system::record_pet_creation(global_stats);
         transfer::transfer(pet, sender);
     }
 
     // for frontend
-    public entry fun create_first_pet(user_state: &mut UserState, name: vector<u8>, pet_type: u8, ctx: &mut tx_context::TxContext) {
+    public entry fun create_first_pet(user_state: &mut UserState, name: vector<u8>, pet_type: u8, global_stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext) {
         assert!(!user_state.has_created_first_pet, EALREADY_HAS_PET); 
-        create_free_pet(user_state, name, pet_type, ctx);
+        create_free_pet(user_state, name, pet_type, global_stats, ctx);
     }
 
     // for frontend
-    public entry fun create_additional_pet(name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, ctx: &mut tx_context::TxContext) {
-        create_paid_pet(name, pet_type, payment, ctx);
+    public entry fun create_additional_pet(name: vector<u8>, pet_type: u8, payment: &mut coin::Coin<oct::OCT>, global_stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext) {
+        create_paid_pet(name, pet_type, payment, global_stats, ctx);
     }
 
     public fun get_level(pet: &PetNFT): u64 {
@@ -180,6 +182,7 @@ module OnePet::pet_stats {
         if (pet.energy > 100) {
             pet.energy = 100;
         };
+        stat_system::record_feed_action(global_stats);
     }
 
     public entry fun play_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown, global_stats: &mut stat_system::GlobalStats, clock: &Clock, ctx: &mut tx_context::TxContext) {
@@ -196,6 +199,7 @@ module OnePet::pet_stats {
         if (pet.energy < 0) {
             pet.energy = 0;
         };
+        stat_system::record_play_action(global_stats);
     }
 
     public entry fun drink_pet(pet: &mut PetNFT, cooldown: &mut cooldown_system::ActionCooldown, inventory: &mut inventory::PlayerInventory, global_stats: &mut stat_system::GlobalStats, clock: &Clock, ctx: &mut tx_context::TxContext) {
@@ -220,6 +224,7 @@ module OnePet::pet_stats {
         if (pet.health > 100) {
             pet.health = 100;
         };
+        stat_system::record_drink_action(global_stats);
     }
 
     public entry fun sleep_pet(pet: &mut PetNFT, global_stats: &mut stat_system::GlobalStats,) {
@@ -228,6 +233,7 @@ module OnePet::pet_stats {
         if (pet.happiness < 0) {
             pet.happiness = 0;
         };
+        stat_system::record_sleep_action(global_stats);
     }
 
     #[test_only]
@@ -283,15 +289,17 @@ module OnePet::pet_stats {
         
         let mut user_state = create_test_user_state(sender, &mut ctx);
         let mut payment = coin::mint_for_testing<oct::OCT>(100_000_000, &mut ctx);
+        let mut global_stats = stat_system::create_test_global_stats(sender, &mut ctx);
         
-        create_pet(&mut user_state, b"FirstPet", CAT, &mut payment, &mut ctx);
+        create_pet(&mut user_state, b"FirstPet", CAT, &mut payment, &mut global_stats, &mut ctx);
         
         assert!(coin::value(&payment) == 100_000_000, 1);
         
-        create_pet(&mut user_state, b"SecondPet", DOG, &mut payment, &mut ctx);
+        create_pet(&mut user_state, b"SecondPet", DOG, &mut payment, &mut global_stats, &mut ctx);
         
         assert!(coin::value(&payment) == 50_000_000, 2); //100m-50m=50m
         
+        stat_system::transfer_test_global_stats(global_stats, sender);
         coin::burn_for_testing(payment);
         transfer::transfer(user_state, @0x0);
     }
@@ -302,9 +310,12 @@ module OnePet::pet_stats {
         let sender = tx_context::sender(&ctx);
         
         let mut user_state = create_test_user_state(sender, &mut ctx);
-        create_first_pet(&mut user_state, b"Fluffy", CAT, &mut ctx);
+        let mut global_stats = stat_system::create_test_global_stats(sender, &mut ctx);
+
+        create_first_pet(&mut user_state, b"Fluffy", CAT, &mut global_stats, &mut ctx);
 
         assert!(user_state.has_created_first_pet, 1);
+        stat_system::transfer_test_global_stats(global_stats, @0x0);
         transfer::transfer(user_state, @0x0);
     }
 
@@ -315,22 +326,29 @@ module OnePet::pet_stats {
         let sender = tx_context::sender(&ctx);
         
         let mut user_state = create_test_user_state(sender, &mut ctx);
-        create_first_pet(&mut user_state, b"FirstPet", CAT, &mut ctx);
+        let mut global_stats = stat_system::create_test_global_stats(sender, &mut ctx);
+
+        create_first_pet(&mut user_state, b"FirstPet", CAT, &mut global_stats, &mut ctx);
         {
-            create_first_pet(&mut user_state, b"SecondPet", DOG, &mut ctx); //this will failed as i put in the {}
+            create_first_pet(&mut user_state, b"SecondPet", DOG, &mut global_stats, &mut ctx); //this will failed as i put in the {}
         };
+        stat_system::transfer_test_global_stats(global_stats, @0x0);
         transfer::transfer(user_state, @0x0);
     }
 
     #[test]
     fun test_create_additional_pet() {
         let mut ctx = tx_context::dummy();
-        
+        let owner = @0x0;
+
         let mut payment = coin::mint_for_testing<oct::OCT>(100_000_000, &mut ctx);
-        create_additional_pet(b"PaidPet", DOG, &mut payment, &mut ctx);
+        let mut global_stats = stat_system::create_test_global_stats(owner, &mut ctx);
+        
+        create_additional_pet(b"PaidPet", DOG, &mut payment, &mut global_stats, &mut ctx);
         
         assert!(coin::value(&payment) == 50_000_000, 1); //100m-50m=50m
         
+        stat_system::transfer_test_global_stats(global_stats, @0x0);
         coin::burn_for_testing(payment);
     }
 }
