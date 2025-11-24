@@ -11,6 +11,8 @@ module OnePet::pet_stats {
     use one::clock::Clock;
 
     use OnePet::cooldown_system;
+    use OnePet::stat_system;
+    use OnePet::inventory;
 
     const DOG: u8 = 0;
     const CAT: u8 = 1;
@@ -23,6 +25,7 @@ module OnePet::pet_stats {
     const EALREADY_HAS_PET: u64 = 409;
     const ECOOLDOWN_NOT_READY: u64 = 410;
     const ENOUGH_DRINK: u64 = 411;
+    const ENOUGH_FOOD: u64 = 412;
 
     const PET_PRICE: u64 = 50_000_000;
 

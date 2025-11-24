@@ -14,7 +14,7 @@ module OnePet::wheel_system {
     const REWARD_ITEM: u64 = 2;
     const REWARD_RARE: u64 = 3;
 
-    const EDAILY_LIMIT_EXCEEDED: u64 = 411;
+    const EDAILY_LIMIT_EXCEEDED: u64 = 413;
     
     public struct WheelReward has copy, drop {
         reward_type: u64,

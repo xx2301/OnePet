@@ -21,7 +21,7 @@ module OnePet::stat_system {
         stats: PetStats
     }
     
-    public entry fun init(ctx: &mut tx_context::TxContext) {
+    fun init(ctx: &mut tx_context::TxContext) {
         let global_stats = GlobalStats {
             id: object::new(ctx),
             stats: PetStats {

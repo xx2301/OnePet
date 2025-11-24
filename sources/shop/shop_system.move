@@ -12,6 +12,7 @@ module OnePet::shop_system {
     
     use OnePet::inventory;
     use OnePet::inventory::PlayerInventory;
+    use OnePet::stat_system;
 
     const ITEM_FOOD: u64 = 0;
     const ITEM_TOY: u64 = 1;
@@ -129,15 +130,18 @@ module OnePet::shop_system {
     #[test]
     fun test_shop_items() {
         let mut ctx = tx_context::dummy();
+        let owner = @0x0;
         
         let mut shop = ShopInventory {
             id: object::new(&mut ctx),
             items: vector::empty<ShopItem>()
         };
         
-        let mut player_inventory = inventory::create_test_inventory(@0x0, &mut ctx);
+        let mut player_inventory = inventory::create_test_inventory(owner, &mut ctx);
         
         let mut payment = coin::mint_for_testing<oct::OCT>(100, &mut ctx);
+        
+        let mut global_stats = stat_system::create_test_global_stats(owner, &mut ctx);
         
         vector::push_back(&mut shop.items, ShopItem {
             item_id: 1,
@@ -148,7 +152,7 @@ module OnePet::shop_system {
             effect_description: string::utf8(b"+10 Hunger")
         });
         
-        buy_item(&mut shop, &mut player_inventory, 1, 2, &mut payment, &mut ctx);
+        buy_item(&mut shop, &mut player_inventory, 1, 2, &mut payment, &mut global_stats, &mut ctx);
 
         let items = inventory::get_inventory_items(&player_inventory);
         assert!(vector::length(items) == 2, 1);
@@ -158,28 +162,38 @@ module OnePet::shop_system {
         //check the coin after deducted from user's wallet
         assert!(coin::value(&payment) == 80, WRONG_MONEY_LEFT); //100-20 = 80
         
-        transfer::transfer(shop, @0x0);
-        inventory::transfer_test_inventory(player_inventory, @0x0);
+        // 先转移 global_stats
+        stat_system::transfer_test_global_stats(global_stats, owner);
+        
+        // 然后处理其他对象
+        transfer::transfer(shop, owner);
+        inventory::transfer_test_inventory(player_inventory, owner);
         coin::burn_for_testing(payment);
     }
-    
+
     #[test]
     #[expected_failure(abort_code = EITEM_NOT_FOUND)]
     fun test_buy_nonexistent_item() {
         let mut ctx = tx_context::dummy();
+        let owner = @0x0;
         
         let mut shop = ShopInventory {
             id: object::new(&mut ctx),
             items: vector::empty<ShopItem>()
         };
 
-        let mut player_inventory = inventory::create_test_inventory(@0x0, &mut ctx);
+        let mut player_inventory = inventory::create_test_inventory(owner, &mut ctx);
         let mut payment = coin::mint_for_testing<oct::OCT>(100, &mut ctx);
-
-        buy_item(&mut shop, &mut player_inventory, 999, 1, &mut payment, &mut ctx);
         
-        transfer::transfer(shop, @0x0);
-        inventory::transfer_test_inventory(player_inventory, @0x0);
+        let mut global_stats = stat_system::create_test_global_stats(owner, &mut ctx);
+
+        buy_item(&mut shop, &mut player_inventory, 999, 1, &mut payment, &mut global_stats, &mut ctx);
+        
+        // 先转移 global_stats
+        stat_system::transfer_test_global_stats(global_stats, owner);
+        
+        transfer::transfer(shop, owner);
+        inventory::transfer_test_inventory(player_inventory, owner);
         coin::burn_for_testing(payment);
     }
 
@@ -187,14 +201,17 @@ module OnePet::shop_system {
     #[expected_failure(abort_code = EINSUFFICIENT_BALANCE)]
     fun test_insufficient_balance() {
         let mut ctx = tx_context::dummy();
+        let owner = @0x0;
         
         let mut shop = ShopInventory {
             id: object::new(&mut ctx),
             items: vector::empty<ShopItem>()
         };
 
-        let mut player_inventory = inventory::create_test_inventory(@0x0, &mut ctx);
-        let mut payment = coin::mint_for_testing<oct::OCT>(5, &mut ctx);  //only have 5 OCT
+        let mut player_inventory = inventory::create_test_inventory(owner, &mut ctx);
+        let mut payment = coin::mint_for_testing<oct::OCT>(5, &mut ctx);
+        
+        let mut global_stats = stat_system::create_test_global_stats(owner, &mut ctx);
 
         vector::push_back(&mut shop.items, ShopItem {
             item_id: 1,
@@ -205,10 +222,13 @@ module OnePet::shop_system {
             effect_description: string::utf8(b"+10 Hunger")
         });
 
-        buy_item(&mut shop, &mut player_inventory, 1, 1, &mut payment, &mut ctx);
+        buy_item(&mut shop, &mut player_inventory, 1, 1, &mut payment, &mut global_stats, &mut ctx);
         
-        transfer::transfer(shop, @0x0);
-        inventory::transfer_test_inventory(player_inventory, @0x0);
+        // 先转移 global_stats
+        stat_system::transfer_test_global_stats(global_stats, owner);
+        
+        transfer::transfer(shop, owner);
+        inventory::transfer_test_inventory(player_inventory, owner);
         coin::burn_for_testing(payment);
     }
 }

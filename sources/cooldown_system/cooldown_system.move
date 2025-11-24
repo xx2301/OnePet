@@ -27,6 +27,7 @@ module OnePet::cooldown_system {
             last_play_time: 0,
             last_train_time: 0,
             last_sleep_time: 0,
+            last_drink_time: 0,
         };
         transfer::transfer(cooldown, tx_context::sender(ctx));
     }
@@ -72,6 +73,7 @@ module OnePet::cooldown_system {
             last_play_time: 0,
             last_train_time: 0,
             last_sleep_time: 0,
+            last_drink_time: 0,
         }
     }
 }
