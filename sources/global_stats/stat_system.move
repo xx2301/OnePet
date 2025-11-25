@@ -36,7 +36,7 @@ module OnePet::stat_system {
                 total_sleep_actions: 0
             }
         };
-        transfer::transfer(global_stats, tx_context::sender(ctx));
+        transfer::share_object(global_stats);
     }
     
     public entry fun record_user_registration(stats: &mut GlobalStats) {

@@ -16,8 +16,8 @@ export default function App(){
       <Route path="/HomePage" element={<HomePage darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
       <Route path="/PetStats" element={<PetStats darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
       <Route path="/Shop" element={<Shop tokenBalance={tokenBalance} setTokenBalance={setTokenBalance} inventory={inventory} setInventory={setInventory}/>}></Route>
-      <Route path="/Spin" element={<Spin />}></Route>
-      <Route path="/Battle" element={<Battle />}></Route>
+      <Route path="/Spin" element={<Spin darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
+      <Route path="/Battle" element={<Battle darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
     </Routes>
   );
 }
