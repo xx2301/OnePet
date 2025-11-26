@@ -247,7 +247,7 @@ export default function Shop({ darkMode, setDarkMode }) {
   };
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${darkMode ? styles.dark : styles.light}`}>
       <Header darkMode={darkMode} setDarkMode={setDarkMode} />
       <div className={styles.container}>
         <h1>🛒 Pet Shop</h1>

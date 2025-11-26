@@ -300,7 +300,7 @@ export default function Battle({darkMode, setDarkMode}) {
   };
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${darkMode ? styles.dark : styles.light}`}>
       <Header darkMode={darkMode} setDarkMode={setDarkMode} />
       <div className={styles.container}>
         <h2 style={{
@@ -317,12 +317,17 @@ export default function Battle({darkMode, setDarkMode}) {
             padding: '1rem',
             marginBottom: '1.5rem',
             borderRadius: '12px',
-            backgroundColor: message.includes('❌') ? '#fee2e2' : message.includes('🎉') ? '#d1fae5' : '#fef3c7',
+            backgroundColor: message.includes('❌') 
+              ? (darkMode ? '#7f1d1d' : '#fee2e2')
+              : message.includes('🎉') 
+                ? (darkMode ? '#064e3b' : '#d1fae5')
+                : (darkMode ? '#78350f' : '#fef3c7'),
             border: `2px solid ${message.includes('❌') ? '#ef4444' : message.includes('🎉') ? '#10b981' : '#f59e0b'}`,
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
             textAlign: 'center',
             fontWeight: '600',
-            fontSize: '1.05rem'
+            fontSize: '1.05rem',
+            color: darkMode ? '#fff' : '#000'
           }}>
             {message}
           </div>
@@ -330,23 +335,42 @@ export default function Battle({darkMode, setDarkMode}) {
 
         <div className={styles.topRow}>
           <div className={styles.card} style={{
-            background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+            background: darkMode 
+              ? 'linear-gradient(135deg, #667eea25 0%, #764ba225 100%)'
+              : 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
             border: '2px solid #667eea40',
-            padding: '1.5rem'
+            padding: '1.5rem',
+            backgroundColor: darkMode ? '#1e1e30' : '#fff'
           }}>
             <h3 style={{ color: '#667eea', marginBottom: '1rem', fontSize: '1.3rem' }}>🛡️ Your Pet</h3>
             {userPet ? (
               <div className={styles.petRow}>
                 <div className={styles.emoji} style={{ fontSize: '64px' }}>{getPetEmoji(userPet.petType)}</div>
                 <div style={{ flex: 1 }}>
-                  <div className={styles.name} style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>{userPet.name}</div>
-                  <div className={styles.stat} style={{ fontSize: '0.95rem', marginBottom: '0.3rem' }}>⭐ Level: {userPet.level}</div>
-                  <div className={styles.stat} style={{ fontSize: '0.95rem', marginBottom: '0.3rem' }}>❤️ HP: {userPet.health}/100</div>
-                  <div className={styles.stat} style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>✨ EXP: {userPet.experience}</div>
+                  <div className={styles.name} style={{ 
+                    fontSize: '1.4rem', 
+                    marginBottom: '0.5rem',
+                    color: darkMode ? '#fff' : '#000'
+                  }}>{userPet.name}</div>
+                  <div className={styles.stat} style={{ 
+                    fontSize: '0.95rem', 
+                    marginBottom: '0.3rem',
+                    color: darkMode ? '#d1d5db' : '#444'
+                  }}>⭐ Level: {userPet.level}</div>
+                  <div className={styles.stat} style={{ 
+                    fontSize: '0.95rem', 
+                    marginBottom: '0.3rem',
+                    color: darkMode ? '#d1d5db' : '#444'
+                  }}>❤️ HP: {userPet.health}/100</div>
+                  <div className={styles.stat} style={{ 
+                    fontSize: '0.95rem', 
+                    marginBottom: '0.5rem',
+                    color: darkMode ? '#d1d5db' : '#444'
+                  }}>✨ EXP: {userPet.experience}</div>
                   <div style={{
                     width: '100%',
                     height: '14px',
-                    background: 'rgba(0,0,0,0.1)',
+                    background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
                     borderRadius: '10px',
                     overflow: 'hidden',
                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
@@ -362,26 +386,42 @@ export default function Battle({darkMode, setDarkMode}) {
                 </div>
               </div>
             ) : (
-              <div className={styles.placeholder}>No pet found. Adopt one first!</div>
+              <div className={styles.placeholder} style={{ 
+                color: darkMode ? '#9ca3af' : '#777' 
+              }}>No pet found. Adopt one first!</div>
             )}
           </div>
 
           <div className={styles.card} style={{
-            background: 'linear-gradient(135deg, #ef444415 0%, #dc262615 100%)',
+            background: darkMode 
+              ? 'linear-gradient(135deg, #ef444425 0%, #dc262625 100%)'
+              : 'linear-gradient(135deg, #ef444415 0%, #dc262615 100%)',
             border: '2px solid #ef444440',
-            padding: '1.5rem'
+            padding: '1.5rem',
+            backgroundColor: darkMode ? '#1e1e30' : '#fff'
           }}>
             <h3 style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '1.3rem' }}>👾 Opponent</h3>
             {monster ? (
               <div className={styles.petRow}>
                 <div className={styles.emoji} style={{ fontSize: '64px' }}>👾</div>
                 <div style={{ flex: 1 }}>
-                  <div className={styles.name} style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>{monster.name}</div>
-                  <div className={styles.stat} style={{ fontSize: '0.95rem' }}>⭐ Level: {monster.level}</div>
+                  <div className={styles.name} style={{ 
+                    fontSize: '1.4rem', 
+                    marginBottom: '0.5rem',
+                    color: darkMode ? '#fff' : '#000'
+                  }}>{monster.name}</div>
+                  <div className={styles.stat} style={{ 
+                    fontSize: '0.95rem',
+                    color: darkMode ? '#d1d5db' : '#444'
+                  }}>⭐ Level: {monster.level}</div>
                 </div>
               </div>
             ) : (
-              <div className={styles.placeholder} style={{ padding: '2rem 0', textAlign: 'center', color: '#999' }}>🔍 No opponent selected</div>
+              <div className={styles.placeholder} style={{ 
+                padding: '2rem 0', 
+                textAlign: 'center', 
+                color: darkMode ? '#6b7280' : '#999' 
+              }}>🔍 No opponent selected</div>
             )}
             <div className={styles.controls} style={{ marginTop: '1.5rem', gap: '0.8rem' }}>
               <button 
@@ -433,8 +473,12 @@ export default function Battle({darkMode, setDarkMode}) {
             marginTop: '2rem',
             borderRadius: '16px',
             background: battleResult.victory 
-              ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
-              : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+              ? (darkMode 
+                  ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
+                  : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)')
+              : (darkMode
+                  ? 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)'
+                  : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'),
             border: `3px solid ${battleResult.victory ? '#10b981' : '#ef4444'}`,
             boxShadow: battleResult.victory 
               ? '0 8px 24px rgba(16, 185, 129, 0.3)'
@@ -444,12 +488,22 @@ export default function Battle({darkMode, setDarkMode}) {
             <h3 style={{
               fontSize: '2rem',
               marginBottom: '1rem',
-              color: battleResult.victory ? '#059669' : '#dc2626'
+              color: battleResult.victory 
+                ? (darkMode ? '#6ee7b7' : '#059669')
+                : (darkMode ? '#fca5a5' : '#dc2626')
             }}>{battleResult.victory ? "🎉 Victory!" : "😔 Defeat"}</h3>
             {battleResult.victory && (
-              <div style={{ fontSize: '1.1rem', fontWeight: '500' }}>
+              <div style={{ 
+                fontSize: '1.1rem', 
+                fontWeight: '500',
+                color: darkMode ? '#e5e7eb' : '#000'
+              }}>
                 <p style={{ marginBottom: '0.5rem' }}>✨ Experience Gained: <strong>{battleResult.expGain}</strong></p>
-                <p style={{ fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+                <p style={{ 
+                  fontSize: '0.9rem', 
+                  color: darkMode ? '#9ca3af' : '#666', 
+                  fontStyle: 'italic' 
+                }}>
                   (Token rewards: {battleResult.tokensEarned} - require contract update to claim)
                 </p>
               </div>
@@ -466,7 +520,8 @@ export default function Battle({darkMode, setDarkMode}) {
             padding: '0.8rem 1.5rem',
             borderRadius: '10px',
             border: '2px solid #667eea',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.3s ease',
+            backgroundColor: darkMode ? 'rgba(102, 126, 234, 0.1)' : 'transparent'
           }}>← Back to Pet</Link>
           <button 
             onClick={handleReset} 
@@ -474,7 +529,7 @@ export default function Battle({darkMode, setDarkMode}) {
             style={{
               padding: '0.8rem 1.5rem',
               borderRadius: '10px',
-              background: '#64748b',
+              background: darkMode ? '#374151' : '#64748b',
               color: '#fff',
               border: 'none',
               cursor: loading ? 'not-allowed' : 'pointer',

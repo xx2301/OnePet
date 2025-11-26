@@ -1,9 +1,24 @@
 .page {
-  color: white;
-  padding: 40px;
-  background: linear-gradient(180deg, #1a004d, #0b002b);
   min-height: 100vh;
   text-align: center;
+  transition: background 0.4s, color 0.4s;
+  position: relative;
+}
+
+.dark {
+  background: linear-gradient(to bottom right, #3b0a91, #0b1a7a, #082c5c);
+  color: white;
+}
+
+.light {
+  background: linear-gradient(to bottom right, #e8d3ff, #d9eaff, #ffffff);
+  color: #222;
+}
+
+.container {
+  padding: 40px;
+  position: relative;
+  z-index: 1;
 }
 
 .balance {
@@ -26,6 +41,16 @@
   transition: transform 0.2s;
 }
 
+.dark .card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.light .card {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(170, 0, 255, 0.3);
+}
+
 .card:hover {
   transform: scale(1.05);
 }
@@ -37,13 +62,28 @@
 }
 
 .price {
-  color: #ffd966;
   margin: 5px 0;
+}
+
+.dark .price {
+  color: #ffd966;
+}
+
+.light .price {
+  color: #9333ea;
+  font-weight: 600;
 }
 
 .effect {
   font-size: 0.9rem;
+}
+
+.dark .effect {
   color: #ccc;
+}
+
+.light .effect {
+  color: #666;
 }
 
 .shopButton {
