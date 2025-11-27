@@ -53,17 +53,27 @@ Move Contract API Reference
 - Get pet's current health
 
 ## ⚔️ Battle System
+<<<<<<< HEAD
 ### create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut tx_context::TxContext)
 - Recommended: Automatically create monsters of appropriate levels based on pet level
+=======
+### create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut TxContext)
+- Recommended: Automatically create monsters of appropriate levels based on pet reference
+>>>>>>> 5abf8cb53278159180423f885b5a615a99e3fdae
 - Monster level range: Pet level ±2 (minimum level 1)
+- Parameters: pet (reference to PetNFT to calculate level from), name (monster name as UTF-8 bytes)
 
 ### create_monster(min_level: u64, max_level: u64, name: vector<u8>, ctx: &mut tx_context::TxContext)
 - Create monster with specified level range
+- Monster stats: health = level * 20, attack = level * 5
 
 ### start_pve_battle(player: address, pet: &mut pet_stats::PetNFT, monster: &mut Monster, stats: &mut stat_system::GlobalStats, badge: &mut profile_badge::ProfileBadge, ctx: &mut tx_context::TxContext) -> BattleResult
 - Player vs Environment (Computer)
-- Return BattleResult of "winner", "exp_gain" and "tokens_earned"...
+- Returns BattleResult with "winner", "exp_gained" and "tokens_earned" (Note: return value is ignored in entry functions)
 - Win condition: Pet level >= Monster level and pet health > 0
+- Victory rewards: exp = monster.level * 10, tokens = monster.level * 5
+- Defeat consolation: exp = monster.level * 2, tokens = 0
+- **WARNING**: Tokens are calculated but NOT actually minted/transferred (contract issue)
 - Records battle in global stats
 
 ## 🎯 Wheel System

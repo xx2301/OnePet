@@ -1,54 +1,55 @@
 import React, { useEffect, useState } from 'react'
 import styles from './Header.module.css'
+import { getPetTokenBalance } from './services/onePetApi'
 
 export default function Header({ darkMode, setDarkMode }) {
     const [wallet, setWallet] = useState(null);
-    const [suiBalance, setSuiBalance] = useState(null);
+    const [petTokenBalance, setPetTokenBalance] = useState(null);
     const SUI_RPC = "https://rpc-testnet.onelabs.cc:443";
 
     const shorten = (addr) => (addr ? `${addr.slice(0,6)}...${addr.slice(-6)}` : '');
-
-    const fetchBalancesRpc = async (addr) => {
-      if (!addr) return null;
-      try {
-        const res = await fetch(SUI_RPC, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sui_getAllBalances', params: [addr] }),
-        });
-        const data = await res.json();
-        const balances = data?.result || [];
-        if (!Array.isArray(balances) || balances.length === 0) return null;
-        const suiCoin = balances.find((b) => b.coinType && b.coinType.includes('SUI'));
-        const target = suiCoin || balances[0];
-        const raw = Number(target.totalBalance || 0);
-        const human = raw / 1e9;
-        return { raw, human };
-      } catch (e) {
-        console.warn('Failed to fetch balances', e);
-        return null;
-      }
-    };
 
     useEffect(() => {
       const addr = localStorage.getItem('suiAddress');
       if (addr) {
         setWallet(addr);
-        fetchBalancesRpc(addr).then((b) => { if (b) setSuiBalance(b); });
+        getPetTokenBalance(addr).then((balance) => setPetTokenBalance(balance));
       }
       const onStorage = (e) => {
         if (e.key === 'suiAddress') {
           if (!e.newValue) {
             setWallet(null);
-            setSuiBalance(null);
+            setPetTokenBalance(null);
           } else {
             setWallet(e.newValue);
-            fetchBalancesRpc(e.newValue).then((b) => { if (b) setSuiBalance(b); });
+            getPetTokenBalance(e.newValue).then((balance) => setPetTokenBalance(balance));
           }
         }
       };
       window.addEventListener('storage', onStorage);
-      return () => window.removeEventListener('storage', onStorage);
+      
+      // Listen for balance update events from other components
+      const onBalanceUpdate = () => {
+        const currentAddr = localStorage.getItem('suiAddress');
+        if (currentAddr) {
+          getPetTokenBalance(currentAddr).then((balance) => setPetTokenBalance(balance));
+        }
+      };
+      window.addEventListener('balanceUpdate', onBalanceUpdate);
+      
+      // Auto-refresh balance every 5 seconds
+      const interval = setInterval(() => {
+        const currentAddr = localStorage.getItem('suiAddress');
+        if (currentAddr) {
+          getPetTokenBalance(currentAddr).then((balance) => setPetTokenBalance(balance));
+        }
+      }, 5000);
+      
+      return () => {
+        window.removeEventListener('storage', onStorage);
+        window.removeEventListener('balanceUpdate', onBalanceUpdate);
+        clearInterval(interval);
+      };
     }, []);
 
     return (
@@ -62,7 +63,7 @@ export default function Header({ darkMode, setDarkMode }) {
                     {wallet ? shorten(wallet) : 'Wallet: Not connected'}
                 </span>
                 <span className={styles.token}>
-                    TOKEN: {suiBalance ? `${suiBalance.human} SUI` : '—'}
+                    PetToken: {petTokenBalance !== null ? Math.round(petTokenBalance).toLocaleString() : '—'}
                 </span>
             </div>
         </nav>

@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "D036B4EED1B9318980B545BFE44C88C82A1276479F1E9E44C226D4A872C7AB16"
+manifest_digest = "827C27F74E24B8149E8C2A258D37ABB2B2F9EC8CFFBE72E1DE469B9957EA7A85"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { id = "MoveStdlib", name = "MoveStdlib" },
@@ -30,6 +30,11 @@ flavor = "one"
 
 [env.testnet]
 chain-id = "1bd5c965"
+<<<<<<< HEAD
 original-published-id = "0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8"
 latest-published-id = "0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8"
+=======
+original-published-id = "0x37c250c201f7b56ae27f9ce5d7957838e96b7e9777eb8fffa94bf265062f2e9b"
+latest-published-id = "0x37c250c201f7b56ae27f9ce5d7957838e96b7e9777eb8fffa94bf265062f2e9b"
+>>>>>>> 5abf8cb53278159180423f885b5a615a99e3fdae
 published-version = "1"

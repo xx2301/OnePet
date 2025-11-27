@@ -20,3 +20,6 @@ target/
 
 # Node.js (for frontend)
 node_modules/
+all_object_after_init.txt
+objects_output.txt
+user_initialization_output.txt
