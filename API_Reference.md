@@ -53,21 +53,21 @@ Move Contract API Reference
 - Get pet's current health
 
 ## ⚔️ Battle System
-### create_monster_based_on_pet_level(pet_level: u64, name: vector<u8>, ctx: &mut TxContext)
+### create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut tx_context::TxContext)
 - Recommended: Automatically create monsters of appropriate levels based on pet level
 - Monster level range: Pet level ±2 (minimum level 1)
 
-### create_monster(min_level: u64, max_level: u64, name: vector<u8>, ctx: &mut TxContext)
+### create_monster(min_level: u64, max_level: u64, name: vector<u8>, ctx: &mut tx_context::TxContext)
 - Create monster with specified level range
 
-### start_pve_battle(player: address, pet: &mut pet_stats::PetNFT, monster: &mut Monster, stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext) -> BattleResult
+### start_pve_battle(player: address, pet: &mut pet_stats::PetNFT, monster: &mut Monster, stats: &mut stat_system::GlobalStats, badge: &mut profile_badge::ProfileBadge, ctx: &mut tx_context::TxContext) -> BattleResult
 - Player vs Environment (Computer)
 - Return BattleResult of "winner", "exp_gain" and "tokens_earned"...
 - Win condition: Pet level >= Monster level and pet health > 0
 - Records battle in global stats
 
 ## 🎯 Wheel System
-### spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, ctx: &mut tx_context::TxContext) -> WheelReward
+### spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, clock: &Clock, ctx: &mut tx_context::TxContext) -> WheelReward
 - Daily wheel spin for entry user
 - Reward Percentage: 
   - 40%: Pet Token (10-30 Pet Token)
@@ -80,7 +80,7 @@ Move Contract API Reference
 - Initialize dailey reward for player
 - Extra reward for check in streak daily
 
-### claim_daily_reward(daily_reward: &mut DailyReward, player_inventory: &mut inventory::PlayerInventory, badge: &mut profile_badge::ProfileBadge, ctx: &mut tx_context::TxContext)
+### claim_daily_reward(daily_reward: &mut DailyReward, player_inventory: &mut inventory::PlayerInventory, badge: &mut profile_badge::ProfileBadge, clock: &Clock, ctx: &mut tx_context::TxContext)
 - Claim daily check-in reward with streak bonus
 
 ### create_achievement(achievement_type: u64, ctx: &mut tx_context::TxContext)
@@ -170,7 +170,7 @@ Get pets owned count
 ### init_daily_tracker(ctx: &mut TxContext)
 - Initialize daily tracker for daily spin
 
-### can_spin(tracker: &mut DailyTracker, current_time: u64): bool
+### can_spin(tracker: &mut DailyTracker, clock: &Clock): bool
 - Check whether can spin (Free spin per day)
 
 ### record_spin(tracker: &mut DailyTracker)
@@ -243,7 +243,7 @@ Get pets owned count
 ### random_between(min: u64, max: u64, ctx: &tx_context::TxContext): u64
 - Generate random number between min and max
 
-### random_chance(percent: u64, ctx: &tx_context::TxContext): bool
+### random_chance(percent: u64, ctx: &mut tx_context::TxContext): bool
 - Random chance based on percentage
 
 ## Error Codes

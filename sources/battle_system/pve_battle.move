@@ -7,6 +7,8 @@ module OnePet::pve_battle {
     use OnePet::pet_stats;
     use OnePet::stat_system;
     use OnePet::random_system;
+    use OnePet::pet_token;
+    use OnePet::profile_badge;
 
     public struct BattleResult has copy, drop {
         winner: address,
@@ -21,16 +23,8 @@ module OnePet::pve_battle {
         attack: u64,
         name: string::String
     }
-    
-    public entry fun create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut tx_context::TxContext) {
-        let pet_level = pet_stats::get_level(pet);
-        let min_level = if (pet_level > 3) pet_level - 2 else 1;
-        let max_level = pet_level + 2;
-        create_monster(min_level, max_level, name, ctx);
-    }
 
-    public entry fun create_monster(min_level: u64, max_level: u64, name: vector<u8>, ctx: &mut tx_context::TxContext) {
-        let level = random_system::random_between(min_level, max_level, ctx);
+    public entry fun create_monster_with_exact_level(level: u64, name: vector<u8>, ctx: &mut tx_context::TxContext) {
         let health = level * 20;
         let attack = level * 5;
         
@@ -44,8 +38,22 @@ module OnePet::pve_battle {
         
         transfer::transfer(monster, tx_context::sender(ctx));
     }
+
+    public entry fun create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut tx_context::TxContext) {
+        let pet_level = pet_stats::get_level(pet);
+        let min_level = if (pet_level > 3) pet_level - 2 else 1;
+        let max_level = pet_level + 2;
+        
+        let level = random_system::random_between(min_level, max_level, ctx);
+        create_monster_with_exact_level(level, name, ctx);
+    }
+
+    public entry fun create_monster(min_level: u64, max_level: u64, name: vector<u8>, ctx: &mut tx_context::TxContext) {
+        let level = random_system::random_between(min_level, max_level, ctx);
+        create_monster_with_exact_level(level, name, ctx);
+    }
     
-    public entry fun start_pve_battle(player: address, pet: &mut pet_stats::PetNFT, monster: &mut Monster, stats: &mut stat_system::GlobalStats, ctx: &mut tx_context::TxContext): BattleResult {
+    public entry fun start_pve_battle(player: address, pet: &mut pet_stats::PetNFT, monster: &mut Monster, stats: &mut stat_system::GlobalStats, badge: &mut profile_badge::ProfileBadge, ctx: &mut tx_context::TxContext): BattleResult {
         let pet_level = pet_stats::get_level(pet);
         let pet_health = pet_stats::get_health(pet);
         
@@ -57,8 +65,12 @@ module OnePet::pve_battle {
             
             pet_stats::level_up(pet, exp_gain);
             
+            pet_token::mint_test_tokens(player, tokens, ctx);
+
             stat_system::record_battle(stats, tokens);
             
+            profile_badge::record_battle_win(badge);
+
             BattleResult {
                 winner: player,
                 exp_gained: exp_gain,
@@ -76,11 +88,7 @@ module OnePet::pve_battle {
     }
     
     #[test_only]
-    public fun create_test_monster(
-        level: u64,
-        name: vector<u8>,
-        ctx: &mut tx_context::TxContext
-    ): Monster {
+    public fun create_test_monster(level: u64, name: vector<u8>, ctx: &mut tx_context::TxContext): Monster {
         let health = level * 20;
         let attack = level * 5;
         
@@ -121,9 +129,11 @@ module OnePet::pve_battle {
         let mut monster = create_test_monster(5, b"Goblin", &mut ctx);
         let mut stats = stat_system::create_test_global_stats(@0x1, &mut ctx);
         
+        let mut badge = profile_badge::create_test_profile(b"test_user", &mut ctx); 
+
         let initial_pet_level = pet_stats::get_level(&pet);
         
-        let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut ctx);
+        let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut badge, &mut ctx);
         
         assert!(result.winner == @0x1, 1);
         assert!(result.exp_gained == 50, 2);  // 5 * 10 = 50
@@ -135,6 +145,7 @@ module OnePet::pve_battle {
         pet_stats::transfer_test_pet(pet, @0x0);
         transfer_test_monster(monster, @0x0);
         stat_system::transfer_test_global_stats(stats, @0x0);
+        profile_badge::transfer_test_badge(badge, @0x0); 
     }
     
     #[test]
@@ -146,11 +157,12 @@ module OnePet::pve_battle {
         //level 8 pet
         let mut monster = create_test_monster(8, b"Dragon", &mut ctx);
         let mut stats = stat_system::create_test_global_stats(@0x1, &mut ctx);
-        
+        let mut badge = profile_badge::create_test_profile(b"test_user", &mut ctx); 
+
         let initial_pet_level = pet_stats::get_level(&pet);
         
         //pet might loss
-        let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut ctx);
+        let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut badge, &mut ctx);
         
         assert!(result.winner == @0x0, 1);  //loss
         assert!(result.exp_gained == 16, 2); //8*2 = 16
@@ -162,6 +174,7 @@ module OnePet::pve_battle {
         pet_stats::transfer_test_pet(pet, @0x0);
         transfer_test_monster(monster, @0x0);
         stat_system::transfer_test_global_stats(stats, @0x0);
+        profile_badge::transfer_test_badge(badge, @0x0); 
     }
     
     #[test]
@@ -171,8 +184,9 @@ module OnePet::pve_battle {
         let mut pet = pet_stats::create_test_pet(@0x1, 7, 100, 40, &mut ctx);
         let mut monster = create_test_monster(7, b"Orc", &mut ctx);
         let mut stats = stat_system::create_test_global_stats(@0x1, &mut ctx);
+        let mut badge = profile_badge::create_test_profile(b"test_user", &mut ctx); 
         
-        let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut ctx);
+        let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut badge, &mut ctx);
         
         assert!(result.winner == @0x1, 1);  //pet won
         assert!(result.exp_gained == 70, 2); //7*10 = 70
@@ -181,27 +195,27 @@ module OnePet::pve_battle {
         pet_stats::transfer_test_pet(pet, @0x0);
         transfer_test_monster(monster, @0x0);
         stat_system::transfer_test_global_stats(stats, @0x0);
+        profile_badge::transfer_test_badge(badge, @0x0); 
     }
     
     #[test]
     fun test_multiple_battles() {
         let mut ctx = tx_context::dummy();
         
-        //create pet and multiple monster
         let mut pet = pet_stats::create_test_pet(@0x1, 6, 80, 35, &mut ctx);
         let mut stats = stat_system::create_test_global_stats(@0x1, &mut ctx);
+        let mut badge = profile_badge::create_test_profile(b"test_user", &mut ctx); 
         
         let mut monster1 = create_test_monster(4, b"Slime", &mut ctx);
-        let result1 = start_pve_battle(@0x1, &mut pet, &mut monster1, &mut stats, &mut ctx);
+        let result1 = start_pve_battle(@0x1, &mut pet, &mut monster1, &mut stats, &mut badge, &mut ctx);
         assert!(result1.winner == @0x1, 1);
         
         let mut monster2 = create_test_monster(6, b"Wolf", &mut ctx);
-        let result2 = start_pve_battle(@0x1, &mut pet, &mut monster2, &mut stats, &mut ctx);
+        let result2 = start_pve_battle(@0x1, &mut pet, &mut monster2, &mut stats, &mut badge, &mut ctx);
         assert!(result2.winner == @0x1, 2);
         
-        //third battle might loss
         let mut monster3 = create_test_monster(9, b"Giant", &mut ctx);
-        let result3 = start_pve_battle(@0x1, &mut pet, &mut monster3, &mut stats, &mut ctx);
+        let result3 = start_pve_battle(@0x1, &mut pet, &mut monster3, &mut stats, &mut badge, &mut ctx);
         assert!(result3.winner == @0x0, 3);
         
         pet_stats::transfer_test_pet(pet, @0x0);
@@ -209,6 +223,7 @@ module OnePet::pve_battle {
         transfer_test_monster(monster2, @0x0);
         transfer_test_monster(monster3, @0x0);
         stat_system::transfer_test_global_stats(stats, @0x0);
+        profile_badge::transfer_test_badge(badge, @0x0); 
     }
     
     #[test]
@@ -230,5 +245,40 @@ module OnePet::pve_battle {
         transfer_test_monster(monster1, @0x0);
         transfer_test_monster(monster5, @0x0);
         transfer_test_monster(monster10, @0x0);
+    }
+
+    #[test]
+    fun test_monster_random_levels() {
+        let mut ctx = tx_context::dummy();
+        
+        let pet = pet_stats::create_test_pet(@0x1, 5, 100, 50, &mut ctx);
+        let mut levels = vector::empty<u64>();
+        
+        let mut i = 0;
+        while (i < 10) {
+            let random_level = random_system::random_between(3, 7, &mut ctx);
+            vector::push_back(&mut levels, random_level);
+            i = i + 1;
+        };
+        
+        let first_level = *vector::borrow(&levels, 0);
+        let mut has_variation = false;
+        let mut j = 1;
+        while (j < vector::length(&levels)) {
+            if (*vector::borrow(&levels, j) != first_level) {
+                has_variation = true;
+                break
+            };
+            j = j + 1;
+        };
+        
+        let mut k = 0;
+        while (k < vector::length(&levels)) {
+            let level = *vector::borrow(&levels, k);
+            assert!(level >= 3 && level <= 7, 1);
+            k = k + 1;
+        };
+        
+        pet_stats::transfer_test_pet(pet, @0x0);
     }
 }

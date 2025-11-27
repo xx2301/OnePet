@@ -3,6 +3,7 @@ module OnePet::daily_limits {
     use one::object;
     use one::transfer;
     use one::tx_context;
+    use one::clock::Clock;
     
     public struct DailyTracker has key {
         id: object::UID,
@@ -21,11 +22,12 @@ module OnePet::daily_limits {
         transfer::transfer(tracker, tx_context::sender(ctx));
     }
     
-    public fun can_spin(tracker: &mut DailyTracker, current_time: u64): bool {
-        let current_day = current_time / 86400; //1 days
+    public fun can_spin(tracker: &mut DailyTracker, clock: &Clock): bool {
+        let current_time = one::clock::timestamp_ms(clock);
+        let current_day = current_time / 86400000;
         
-        if (tracker.last_spin_date < current_day) { //will reload everyday
-            tracker.last_spin_date = current_day;
+        if (tracker.last_spin_date / 86400000 < current_day) {
+            tracker.last_spin_date = current_time;
             tracker.spins_used_today = 0;
         };
         

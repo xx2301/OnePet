@@ -2,6 +2,7 @@ module OnePet::wheel_system {
     use one::tx_context;
     use one::object;
     use one::transfer;
+    use one::clock::Clock;
 
     use OnePet::inventory;
     use OnePet::daily_limits;
@@ -29,10 +30,8 @@ module OnePet::wheel_system {
         amount: u64
     }
     
-    public entry fun spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, ctx: &mut tx_context::TxContext): WheelReward {
-        let current_time = tx_context::epoch(ctx);
-
-        assert!(daily_limits::can_spin(daily_tracker, current_time), EDAILY_LIMIT_EXCEEDED);
+    public entry fun spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, clock: &Clock, ctx: &mut tx_context::TxContext): WheelReward {
+        assert!(daily_limits::can_spin(daily_tracker, clock), EDAILY_LIMIT_EXCEEDED);
         daily_limits::record_spin(daily_tracker);
 
         let seed = random_system::random_between(0, 100, ctx);
@@ -81,14 +80,17 @@ module OnePet::wheel_system {
         let mut inventory = inventory::create_test_inventory(@0x1, &mut ctx);
         let mut pet = pet_stats::create_test_pet(@0x1, 1, 100, 50, &mut ctx);
         
-        let reward1 = spin_wheel(&mut daily_tracker, &mut inventory, &mut pet, &mut ctx);
-        assert!(reward1.amount > 0, 1);
+        let clock = one::clock::create_for_testing(&mut ctx);
         
+        let reward1 = spin_wheel(&mut daily_tracker, &mut inventory, &mut pet, &clock, &mut ctx);
+        
+        assert!(reward1.amount > 0, 1);
         assert!(reward1.reward_type >= 0 && reward1.reward_type <= 3, 2);
         
         daily_limits::transfer_test_daily_tracker(daily_tracker, @0x0);
         inventory::transfer_test_inventory(inventory, @0x0);
         pet_stats::transfer_test_pet(pet, @0x0);
+        one::clock::destroy_for_testing(clock);
     }
 
     #[test]
@@ -100,12 +102,14 @@ module OnePet::wheel_system {
         let mut inventory = inventory::create_test_inventory(@0x1, &mut ctx);
         let mut pet = pet_stats::create_test_pet(@0x1, 1, 100, 50, &mut ctx); 
         
-        //test spin_wheel for two per day
-        let _ = spin_wheel(&mut daily_tracker, &mut inventory, &mut pet, &mut ctx); 
-        let _ = spin_wheel(&mut daily_tracker, &mut inventory, &mut pet, &mut ctx); //failed
+        let clock = one::clock::create_for_testing(&mut ctx);
+        
+        let _ = spin_wheel(&mut daily_tracker, &mut inventory, &mut pet, &clock, &mut ctx); 
+        let _ = spin_wheel(&mut daily_tracker, &mut inventory, &mut pet, &clock, &mut ctx);
         
         daily_limits::transfer_test_daily_tracker(daily_tracker, @0x0);
         inventory::transfer_test_inventory(inventory, @0x0);
         pet_stats::transfer_test_pet(pet, @0x0);
+        one::clock::destroy_for_testing(clock);
     }
 }

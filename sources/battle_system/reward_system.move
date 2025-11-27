@@ -3,6 +3,7 @@ module OnePet::reward_system {
     use one::object;
     use one::transfer;
     use one::tx_context;
+    use one::clock::Clock;
     
     use OnePet::inventory;
     use OnePet::profile_badge;
@@ -34,13 +35,8 @@ module OnePet::reward_system {
         transfer::transfer(reward, tx_context::sender(ctx));
     }
     
-    public entry fun claim_daily_reward(
-        daily_reward: &mut DailyReward,
-        player_inventory: &mut inventory::PlayerInventory,
-        badge: &mut profile_badge::ProfileBadge,
-        ctx: &mut tx_context::TxContext
-    ) {
-        let current_time = tx_context::epoch(ctx);
+    public entry fun claim_daily_reward(daily_reward: &mut DailyReward, player_inventory: &mut inventory::PlayerInventory, badge: &mut profile_badge::ProfileBadge, clock: &Clock, ctx: &mut tx_context::TxContext) {
+        let current_time = one::clock::timestamp_ms(clock);
         let time_since_last_claim = current_time - daily_reward.last_claim_time;
         
         //claim daily check in streak_bonus
@@ -140,14 +136,15 @@ module OnePet::reward_system {
         let mut inventory = inventory::create_test_inventory(@0x1, &mut ctx);
         let mut badge = profile_badge::create_test_profile(b"test", &mut ctx);
         
-        //should be correct as the last_claim_time = 0
-        claim_daily_reward(&mut daily_reward, &mut inventory, &mut badge, &mut ctx);
+        let clock = one::clock::create_for_testing(&mut ctx);
+        
+        claim_daily_reward(&mut daily_reward, &mut inventory, &mut badge, &clock, &mut ctx);
         assert!(daily_reward.streak_count == 1, 1);
         
-        //clear
         transfer_test_daily_reward(daily_reward, @0x0);
         inventory::transfer_test_inventory(inventory, @0x0);
         profile_badge::transfer_test_badge(badge, @0x0);
+        one::clock::destroy_for_testing(clock);
     }
 
     #[test]
