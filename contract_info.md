@@ -12,7 +12,7 @@
  - **MY_ADDRESS**=0x142fea65962ec5ca8cc86e94d3b799b12090f3bf4946815728322387435af893
  - **CLOCK**=0x6
 
-## Object ID (Latest Version)
+## Object ID (Old Version)
 - **UserState_ID**: 0xd1f3c834a0ee4036296d5a28b37ae9e3ac9170c35a78e433788d874be37434ae
 - **PlayerInventory_ID**: 0x633d7caa8608af03d9ea0b7f96552213b314d1c1a49a0d5dd99039bf7ea882fa
 - **DailyTracker_ID**: 0xa8794c427dd85d4d5f0b3a7d5a580624fa049674e6b7e914edc1f2ce334263e5

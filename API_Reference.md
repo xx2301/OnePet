@@ -53,13 +53,8 @@ Move Contract API Reference
 - Get pet's current health
 
 ## ⚔️ Battle System
-<<<<<<< HEAD
 ### create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut tx_context::TxContext)
 - Recommended: Automatically create monsters of appropriate levels based on pet level
-=======
-### create_monster_based_on_pet_level(pet: &pet_stats::PetNFT, name: vector<u8>, ctx: &mut TxContext)
-- Recommended: Automatically create monsters of appropriate levels based on pet reference
->>>>>>> 5abf8cb53278159180423f885b5a615a99e3fdae
 - Monster level range: Pet level ±2 (minimum level 1)
 - Parameters: pet (reference to PetNFT to calculate level from), name (monster name as UTF-8 bytes)
 

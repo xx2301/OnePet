@@ -8,13 +8,5 @@ One = { git = "https://github.com/one-chain-labs/onechain.git", subdir = "crates
 MoveStdlib = { git = "https://github.com/one-chain-labs/onechain.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "main" }
 
 [addresses]
+one = "0x2"
 OnePet = "0x0"
-
-[lint]  
-warnings = [
-    "duplicate_alias",
-    "unused_variable", 
-    "unused_use",
-    "unused_const",
-    "unused_field"
-]
