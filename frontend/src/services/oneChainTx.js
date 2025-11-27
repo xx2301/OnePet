@@ -51,12 +51,30 @@ export async function executeOneChainTransaction({
     
     if (coins.data && coins.data.length > 0) {
       console.log('Found OCT coins for gas:', coins.data.length);
-      // Use the first coin for gas
-      tx.setGasPayment([{
-        objectId: coins.data[0].coinObjectId,
-        version: coins.data[0].version,
-        digest: coins.data[0].digest
-      }]);
+      
+      // Check if any args are coin object IDs (to avoid using the same coin for gas and payment)
+      const usedCoinIds = args
+        .filter(arg => typeof arg === 'object' && arg.type === 'object')
+        .map(arg => arg.value);
+      
+      // Find a coin that's not being used in the transaction
+      const gasCoin = coins.data.find(c => !usedCoinIds.includes(c.coinObjectId));
+      
+      if (gasCoin) {
+        console.log('Using gas coin:', gasCoin.coinObjectId, '(not used in transaction)');
+        tx.setGasPayment([{
+          objectId: gasCoin.coinObjectId,
+          version: gasCoin.version,
+          digest: gasCoin.digest
+        }]);
+      } else {
+        console.warn('All coins are being used in transaction, using first coin for gas');
+        tx.setGasPayment([{
+          objectId: coins.data[0].coinObjectId,
+          version: coins.data[0].version,
+          digest: coins.data[0].digest
+        }]);
+      }
     } else {
       console.warn('No OCT coins found, transaction may fail');
     }

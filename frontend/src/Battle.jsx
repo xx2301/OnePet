@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import Header from "./Header";
 import styles from "./Battle.module.css";
-import { getUserObjects, createMonsterBasedOnPetLevel, startPvEBattle } from "./services/onePetApi";
+import { getUserObjects, createMonsterBasedOnPetLevel, startPvEBattle, mintStarterTokens, markAchievementComplete } from "./services/onePetApi";
 
 export default function Battle({darkMode, setDarkMode}) {
   const navigate = useNavigate();
@@ -45,13 +45,43 @@ export default function Battle({darkMode, setDarkMode}) {
     loadUserPet();
   }, []);
 
+  // Poll for selectedPetId changes (in case user switches pets in PetStats while Battle is open)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const selectedPetId = localStorage.getItem('selectedPetId');
+      if (selectedPetId && (!userPet || userPet.id !== selectedPetId)) {
+        console.log('🔄 Detected pet switch. Reloading selected pet:', selectedPetId);
+        loadUserPet();
+      }
+    }, 4000); // every 4s
+    return () => clearInterval(interval);
+  }, [userPet]);
+
   const loadUserPet = async () => {
     const addr = localStorage.getItem("suiAddress");
     if (!addr) return;
 
     try {
       const objs = await getUserObjects(addr);
-      const petObj = objs.find(obj => obj?.data?.type?.includes('pet_stats::PetNFT'));
+      
+      // Get the currently selected pet ID from localStorage
+      const selectedPetId = localStorage.getItem('selectedPetId');
+      
+      // Try to find the selected pet first, otherwise use the first pet
+      let petObj;
+      if (selectedPetId) {
+        petObj = objs.find(obj => 
+          (obj?.data?.type?.includes('pet_stats::PetNFT') || obj?.data?.type?.includes('pet_token::PetNFT')) && 
+          obj?.data?.objectId === selectedPetId
+        );
+        console.log('🎯 Using selected pet:', selectedPetId);
+      }
+      
+      // Fallback to first pet if selected pet not found
+      if (!petObj) {
+        petObj = objs.find(obj => obj?.data?.type?.includes('pet_stats::PetNFT') || obj?.data?.type?.includes('pet_token::PetNFT'));
+        console.log('📌 Using first available pet');
+      }
       
       if (petObj) {
         const fields = petObj?.data?.content?.fields;
@@ -67,11 +97,13 @@ export default function Battle({darkMode, setDarkMode}) {
           hunger: parseInt(fields?.hunger || '0', 10)
         };
         setUserPet(pet);
+        return pet;
       }
     } catch (err) {
       console.error('Failed to load pet:', err);
       setMessage("❌ Failed to load your pet");
     }
+    return null;
   };
 
   const handleFindOpponent = async () => {
@@ -93,32 +125,44 @@ export default function Battle({darkMode, setDarkMode}) {
       
       // The wallet returns base64 encoded effects, we need to fetch the actual transaction
       if (result?.digest) {
-        // Wait a bit for the transaction to be indexed
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         const SUI_RPC = 'https://rpc-testnet.onelabs.cc:443';
-        const txResponse = await fetch(SUI_RPC, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'sui_getTransactionBlock',
-            params: [
-              result.digest,
-              {
-                showInput: false,
-                showRawInput: false,
-                showEffects: true,
-                showEvents: true,
-                showObjectChanges: true,
-                showBalanceChanges: false
-              }
-            ]
-          })
-        });
+        let txData = null;
+
+        // Retry loop for indexing delay
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) {
+            const waitMs = 500 * Math.pow(2, attempt);
+            console.log(`⏳ Waiting ${waitMs}ms before retry transaction fetch (attempt ${attempt + 1})`);
+            await new Promise(r => setTimeout(r, waitMs));
+          }
+          try {
+            const txResponse = await fetch(SUI_RPC, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'sui_getTransactionBlock',
+                params: [
+                  result.digest,
+                  {
+                    showInput: false,
+                    showRawInput: false,
+                    showEffects: true,
+                    showEvents: true,
+                    showObjectChanges: true,
+                    showBalanceChanges: false
+                  }
+                ]
+              })
+            });
+            txData = await txResponse.json();
+            if (!txData.error) break;
+          } catch (fetchErr) {
+            console.warn('Fetch tx attempt failed:', fetchErr);
+          }
+        }
         
-        const txData = await txResponse.json();
         console.log('Transaction details:', txData);
         
         if (txData.error) {
@@ -138,6 +182,7 @@ export default function Battle({darkMode, setDarkMode}) {
             setMessage(`✅ Found opponent: ${randomName}!`);
           } else {
             setMessage("❌ Failed to find monster - please try again");
+            setMonster(null);
           }
           return;
         }
@@ -174,14 +219,17 @@ export default function Battle({darkMode, setDarkMode}) {
         } else {
           console.error('No Monster object found in objectChanges');
           setMessage("❌ Failed to create monster - no Monster object found");
+          setMonster(null);
         }
       } else {
         console.error('No transaction digest returned');
         setMessage("❌ Failed to create monster - no transaction digest");
+        setMonster(null);
       }
     } catch (err) {
       console.error('Failed to create monster:', err);
       setMessage(`❌ Failed to find opponent: ${err.message || 'Unknown error'}`);
+      setMonster(null);
     } finally {
       setLoading(false);
     }
@@ -199,8 +247,17 @@ export default function Battle({darkMode, setDarkMode}) {
     setBattleResult(null);
 
     try {
+      // Refresh pet before battle to ensure latest stats
+      const refreshedPet = await loadUserPet();
+      const petToUse = refreshedPet || userPet;
+      if (!petToUse) {
+        setMessage("❌ Pet not loaded");
+        setLoading(false);
+        setInBattle(false);
+        return;
+      }
       const addr = localStorage.getItem("suiAddress");
-      const result = await startPvEBattle(addr, userPet.id, monster.id);
+      const result = await startPvEBattle(addr, petToUse.id, monster.id);
       
       console.log('Battle result:', result);
       
@@ -238,14 +295,14 @@ export default function Battle({darkMode, setDarkMode}) {
           // Victory formula: exp = monster.level * 10, tokens = monster.level * 5
           // The battle succeeds if pet.level >= monster.level
           
-          const monsterLevel = monster.level || userPet.level;
-          const petWon = userPet.level >= monsterLevel && userPet.health > 0;
+          const monsterLevel = monster.level || petToUse.level;
+          const petWon = petToUse.level >= monsterLevel && petToUse.health > 0;
           
           const expGain = petWon ? monsterLevel * 10 : monsterLevel * 2;
           const tokensEarned = petWon ? monsterLevel * 5 : 0;
           
           console.log('Calculated battle result:', { 
-            petLevel: userPet.level, 
+            petLevel: petToUse.level, 
             monsterLevel, 
             petWon, 
             expGain, 
@@ -260,7 +317,47 @@ export default function Battle({darkMode, setDarkMode}) {
           });
           
           if (petWon) {
-            setMessage(`🎉 Victory! Gained ${expGain} EXP! (Note: Token rewards require contract update)`);
+            setMessage(`🎉 Victory! Earned ${tokensEarned} tokens and ${expGain} EXP!`);
+            
+            // Mint tokens to the player
+            try {
+              await mintStarterTokens(addr, tokensEarned);
+              console.log(`Minted ${tokensEarned} tokens to ${addr}`);
+            } catch (mintError) {
+              console.error('Failed to mint tokens:', mintError);
+              setMessage(`🎉 Victory! Gained ${expGain} EXP! (Token minting failed)`);
+            }
+
+            // Attempt to auto-complete First Battle achievement (type 1)
+            try {
+              const objs = await getUserObjects(addr);
+              const achievementObjs = objs.filter(o => o?.data?.type?.includes('reward_system::Achievement'));
+              for (const a of achievementObjs) {
+                const achievementId = a.data.objectId;
+                // Fetch achievement detail
+                const res = await fetch('https://rpc-testnet.onelabs.cc:443', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'sui_getObject',
+                    params: [achievementId, { showContent: true }]
+                  })
+                });
+                const data = await res.json();
+                const fields = data?.result?.data?.content?.fields;
+                if (!fields) continue;
+                const typeVal = parseInt(fields.achievement_type || '0', 10);
+                const completed = fields.completed === true;
+                if (typeVal === 1 && !completed) {
+                  console.log('🏅 Auto-marking First Battle achievement complete');
+                  await markAchievementComplete(achievementId);
+                }
+              }
+            } catch (achErr) {
+              console.warn('Achievement auto-complete failed:', achErr);
+            }
           } else {
             setMessage("😔 Defeat. Train harder and try again!");
           }
@@ -498,14 +595,8 @@ export default function Battle({darkMode, setDarkMode}) {
                 fontWeight: '500',
                 color: darkMode ? '#e5e7eb' : '#000'
               }}>
+                <p style={{ marginBottom: '0.5rem' }}>💰 Tokens Earned: <strong>{battleResult.tokensEarned}</strong></p>
                 <p style={{ marginBottom: '0.5rem' }}>✨ Experience Gained: <strong>{battleResult.expGain}</strong></p>
-                <p style={{ 
-                  fontSize: '0.9rem', 
-                  color: darkMode ? '#9ca3af' : '#666', 
-                  fontStyle: 'italic' 
-                }}>
-                  (Token rewards: {battleResult.tokensEarned} - require contract update to claim)
-                </p>
               </div>
             )}
           </div>

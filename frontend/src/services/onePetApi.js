@@ -44,6 +44,27 @@ export async function createFirstPet(userStateId, petName, petType) {
   });
 }
 
+// Create additional pet (costs 50 OCT)
+export async function buyAdditionalPet(userStateId, petName, petType, paymentCoinId) {
+  const encoder = new TextEncoder();
+  const nameBytes = Array.from(encoder.encode(petName));
+
+  console.log('Buying additional pet:', { petName, petType, userStateId, paymentCoinId });
+
+  return await executeOneChainTransaction({
+    packageId: PACKAGE_ID,
+    module: 'pet_stats',
+    function: 'create_pet',
+    args: [
+      { type: 'object', value: userStateId },
+      { type: 'pure', value: nameBytes, valueType: 'vector<u8>' },
+      { type: 'pure', value: petType, valueType: 'u8' },
+      { type: 'object', value: paymentCoinId },
+      { type: 'object', value: GLOBAL_STATS_ID }
+    ]
+  });
+}
+
 // Feed pet (requires cooldown + inventory items)
 export async function feedPet(petId, cooldownId, inventoryId) {
   console.log('Feeding pet:', { petId, cooldownId, inventoryId });
@@ -93,25 +114,44 @@ export async function sleepPet(petId) {
 
 // Fetch user objects from RPC
 export async function getUserObjects(address) {
-  const response = await fetch('https://rpc-testnet.onelabs.cc:443', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'suix_getOwnedObjects',
-      params: [
-        address,
-        {
-          filter: { Package: PACKAGE_ID },
-          options: { showType: true, showContent: true, showDisplay: true }
-        }
-      ]
-    })
-  });
+  let allObjects = [];
+  let hasNextPage = true;
+  let cursor = null;
+
+  // Fetch all objects with pagination (RPC limits to 50 per request)
+  while (hasNextPage) {
+    const response = await fetch('https://rpc-testnet.onelabs.cc:443', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'suix_getOwnedObjects',
+        params: [
+          address,
+          {
+            filter: { Package: PACKAGE_ID },
+            options: { showType: true, showContent: true, showDisplay: true }
+          },
+          cursor,
+          50 // Fetch 50 at a time
+        ]
+      })
+    });
+    
+    const data = await response.json();
+    const result = data.result || {};
+    const objects = result.data || [];
+    
+    allObjects = allObjects.concat(objects);
+    
+    hasNextPage = result.hasNextPage || false;
+    cursor = result.nextCursor || null;
+    
+    console.log(`📄 Fetched ${objects.length} objects (Total: ${allObjects.length}, HasMore: ${hasNextPage})`);
+  }
   
-  const data = await response.json();
-  return data.result?.data || [];
+  return allObjects;
 }
 
 // Add item to inventory
@@ -258,6 +298,99 @@ export async function removeItemFromInventory(inventoryId, itemId) {
   });
 }
 
+// Check if user can spin (using Move view function)
+export async function checkCanSpin(dailyTrackerId) {
+  try {
+    // Convert to SECONDS (contract expects seconds, not milliseconds)
+    const currentTime = Math.floor(Date.now() / 1000);
+    console.log('Checking can spin with time (seconds):', currentTime);
+    
+    const wallet = window.onechainWallet || window.onewallet || window.oneWallet;
+    if (!wallet) {
+      throw new Error('No wallet found');
+    }
+
+    // One Wallet / OneChain may not expose a `getClient()` helper. Create a Sui RPC client
+    // directly for devInspect. This uses the same RPC used elsewhere in the app.
+    const { SuiClient } = await import('@mysten/sui/client');
+    const { TransactionBlock } = await import('@mysten/sui.js/transactions');
+    const RPC_URL = 'https://rpc-testnet.onelabs.cc:443';
+    const client = new SuiClient({ url: RPC_URL });
+    
+    // Build transaction block for view call
+    const txb = new TransactionBlock();
+    txb.moveCall({
+      target: `${PACKAGE_ID}::daily_limits::can_spin`,
+      arguments: [
+        txb.object(dailyTrackerId),
+        txb.pure(currentTime, 'u64')
+      ]
+    });
+
+    // Inspect the transaction (doesn't execute on chain)
+    const result = await client.devInspectTransactionBlock({
+      sender: localStorage.getItem('suiAddress'),
+      transactionBlock: txb
+    });
+
+    console.log('Can spin result (devInspect):', result);
+
+    // Try several strategies to decode the boolean return value.
+    try {
+      const res0 = result?.results?.[0];
+      const returnValues = res0?.returnValues || res0?.return_value || [];
+
+      // Case 1: already parsed nested array like [[1]]
+      if (Array.isArray(returnValues) && returnValues.length > 0) {
+        const first = returnValues[0];
+        if (Array.isArray(first) && first.length > 0 && typeof first[0] === 'number') {
+          const canSpin = first[0] === 1;
+          console.log('Decoded canSpin from nested numeric array:', canSpin);
+          return canSpin;
+        }
+
+        // Case 2: first entry is a base64/hex string -> decode
+        if (typeof first === 'string') {
+          let bytes = null;
+          try {
+            // Try base64
+            const str = first;
+            // base64 may include padding and non-printable bytes
+            const bin = atob(str);
+            bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+          } catch (e) {
+            void e;
+            // Not base64 -> maybe hex like 0x01
+            try {
+              const hex = first.replace(/^0x/, '');
+              const pairs = hex.match(/.{1,2}/g) || [];
+              bytes = Uint8Array.from(pairs.map(p => parseInt(p, 16)));
+            } catch (e2) {
+              void e2;
+              bytes = null;
+            }
+          }
+
+          if (bytes && bytes.length > 0) {
+            const canSpin = bytes[0] === 1;
+            console.log('Decoded canSpin from string returnValue:', canSpin, 'bytes:', bytes);
+            return canSpin;
+          }
+        }
+      }
+    } catch (decodeErr) {
+      console.warn('Failed to decode devInspect return value for can_spin:', decodeErr);
+    }
+
+    // If we couldn't decode a boolean, be conservative and return false
+    console.warn('Could not parse can_spin return value, defaulting to false');
+    return false;
+  } catch (error) {
+    console.error('Error checking can spin:', error);
+    return false;
+  }
+}
+
 // Spin the daily wheel
 export async function spinWheel(dailyTrackerId, inventoryId, petId) {
   console.log('Spinning wheel:', { dailyTrackerId, inventoryId, petId });
@@ -283,6 +416,75 @@ export async function levelUpPet(petId, expGained) {
     args: [
       { type: 'object', value: petId },
       { type: 'pure', value: expGained, valueType: 'u64' }
+    ]
+  });
+}
+
+// Claim daily check-in reward
+export async function claimDailyReward(dailyRewardId, inventoryId, badgeId) {
+  console.log('Claiming daily reward:', { dailyRewardId, inventoryId, badgeId });
+  return await executeOneChainTransaction({
+    packageId: PACKAGE_ID,
+    module: 'reward_system',
+    function: 'claim_daily_reward',
+    args: [
+      { type: 'object', value: dailyRewardId },
+      { type: 'object', value: inventoryId },
+      { type: 'object', value: badgeId }
+    ]
+  });
+}
+
+// Create achievement tracker
+export async function createAchievement(achievementType) {
+  console.log('Creating achievement:', { achievementType });
+  return await executeOneChainTransaction({
+    packageId: PACKAGE_ID,
+    module: 'reward_system',
+    function: 'create_achievement',
+    args: [
+      { type: 'pure', value: achievementType, valueType: 'u64' }
+    ]
+  });
+}
+
+// Mark achievement as completed (called by system/user when achievement is earned)
+export async function markAchievementComplete(achievementId) {
+  console.log('Marking achievement complete:', { achievementId });
+  return await executeOneChainTransaction({
+    packageId: PACKAGE_ID,
+    module: 'reward_system',
+    function: 'mark_achievement_complete',
+    args: [
+      { type: 'object', value: achievementId }
+    ]
+  });
+}
+
+// Claim achievement rewards (after achievement is marked complete)
+export async function claimAchievement(achievementId, inventoryId, badgeId) {
+  console.log('Claiming achievement:', { achievementId, inventoryId, badgeId });
+  return await executeOneChainTransaction({
+    packageId: PACKAGE_ID,
+    module: 'reward_system',
+    function: 'check_achievement',
+    args: [
+      { type: 'object', value: achievementId },
+      { type: 'object', value: inventoryId },
+      { type: 'object', value: badgeId }
+    ]
+  });
+}
+
+// Create profile badge
+export async function createProfile(username) {
+  console.log('Creating profile:', { username });
+  return await executeOneChainTransaction({
+    packageId: PACKAGE_ID,
+    module: 'profile_badge',
+    function: 'create_profile',
+    args: [
+      { type: 'pure', value: Array.from(new TextEncoder().encode(username)), valueType: 'vector<u8>' }
     ]
   });
 }

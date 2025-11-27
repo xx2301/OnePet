@@ -6,8 +6,7 @@ import ModalInput from "./components/ModalInput";
 import styles from "./ConnectWallet.module.css";
 import {
   initializeUserAccount,
-  getUserObjects,
-  mintStarterTokens
+  getUserObjects
 } from "./services/onePetApi";
 
 const SUI_RPC = "https://rpc-testnet.onelabs.cc:443";
@@ -72,6 +71,14 @@ async function getObjectDetails(objectId) {
   }
 }
 
+// Helper: extract a type string from various RPC object shapes
+function getObjectType(obj) {
+  if (!obj) return "";
+  if (typeof obj === 'string') return obj;
+  // Common RPC shapes used in this project
+  return obj?.data?.type || obj?.data?.content?.type || obj?.type || obj?.content?.type || "";
+}
+
 export default function ConnectWallet() {
   const navigate = useNavigate();
   const [address, setAddress] = useState(null);
@@ -107,24 +114,29 @@ export default function ConnectWallet() {
     return () => clearInterval(interval);
   }, []);
 
-  // Redirect existing users to PetStats
+  // Redirect existing users to PetStats, new users to HomePage
   useEffect(() => {
     if (!address) return;
-    
+
     const checkExistingUser = async () => {
       try {
-        const objs = await getUserObjects(address);
-        const hasProfileBadge = objs.some(obj => 
-          obj?.data?.type?.includes('profile_badge::ProfileBadge')
+        const objs = await getUserObjects(address) || [];
+        const hasProfileBadge = Array.isArray(objs) && objs.some(obj =>
+          getObjectType(obj).includes('profile_badge::ProfileBadge')
         );
-        if (hasProfileBadge) {
+        const hasPetNFT = Array.isArray(objs) && objs.some(obj =>
+          getObjectType(obj).includes('pet_stats::PetNFT')
+        );
+        if (hasProfileBadge && hasPetNFT) {
           navigate('/PetStats');
+        } else {
+          navigate('/HomePage');
         }
       } catch (err) {
         console.error('Failed to check for existing user:', err);
       }
     };
-    
+
     checkExistingUser();
   }, [address, navigate]);
 
@@ -193,36 +205,7 @@ export default function ConnectWallet() {
     return null;
   };
 
-  const checkExistingUser = async (addr) => {
-    try {
-      const objs = await getUserObjects(addr);
-      console.log('Checking existing user, objects:', objs);
-      
-      if (!Array.isArray(objs) || objs.length === 0) {
-        console.log('No objects found or invalid response');
-        return false;
-      }
-
-      // Check if user has any of the required objects
-      const hasUserObjects = objs.some(obj => {
-        const type = obj?.data?.type || "";
-        const hasMatch = type.includes("pet_stats::UserState") ||
-          type.includes("pet_stats::PetNFT") ||
-          type.includes("inventory::PlayerInventory") ||
-          type.includes("profile_badge::ProfileBadge");
-        if (hasMatch) {
-          console.log('Found user object:', type);
-        }
-        return hasMatch;
-      });
-
-      console.log('Is existing user:', hasUserObjects);
-      return hasUserObjects;
-    } catch (e) {
-      console.error('Error checking existing user:', e);
-      return false;
-    }
-  };
+  // checkExistingUser helper removed (logic consolidated in the connect flow)
 
   const handleInitializeUser = async (username) => {
     if (!pendingAddress) return;
@@ -239,16 +222,6 @@ export default function ConnectWallet() {
       // Call the initialize function
       await initializeUserAccount(username);
 
-      setStatusMessage("Giving you 100 starter PetTokens...");
-      
-      // Mint 100 starter PetTokens
-      try {
-        await mintStarterTokens(pendingAddress, 100);
-      } catch (mintError) {
-        console.error("Failed to mint starter tokens:", mintError);
-        // Continue even if minting fails
-      }
-
       setStatusMessage("Account initialized successfully! Redirecting...");
 
       // Store user data
@@ -260,9 +233,7 @@ export default function ConnectWallet() {
       await fetchUserObjects(pendingAddress);
 
       // Redirect to home page
-      setTimeout(() => {
-        window.location.href = "/HomePage";
-      }, 2000);
+      navigate('/HomePage');
 
     } catch (error) {
       console.error("Initialization failed:", error);
@@ -336,19 +307,35 @@ export default function ConnectWallet() {
         return;
       }
 
-      const isExistingUser = await checkExistingUser(addr);
+      // Inspect objects directly so we can decide where to send the user
+      try {
+        const objs = await getUserObjects(addr) || [];
+        const hasProfileBadge = Array.isArray(objs) && objs.some(o => getObjectType(o).includes('profile_badge::ProfileBadge'));
+        const hasPetNFT = Array.isArray(objs) && objs.some(o => getObjectType(o).includes('pet_stats::PetNFT'));
 
-      if (isExistingUser) {
-        // Existing user - store and redirect
-        localStorage.setItem("suiAddress", addr);
-        localStorage.setItem("suiInitialized", "true");
-        setAddress(addr);
-        await fetchUserObjects(addr);
-        
-        // Redirect to pet stats page
-        window.location.href = "/PetStats";
-      } else {
-        // New user - show username modal, then redirect to HomePage
+        // If user has both profile badge and at least one PetNFT, go to PetStats.
+        // If they have a badge but no pet (existing account without pets), send them to HomePage to adopt.
+        // If neither, treat as new user and prompt for username to initialize.
+        if (hasProfileBadge && hasPetNFT) {
+          localStorage.setItem("suiAddress", addr);
+          localStorage.setItem("suiInitialized", "true");
+          setAddress(addr);
+          fetchUserObjects(addr);
+          navigate('/PetStats');
+        } else if (hasProfileBadge && !hasPetNFT) {
+          localStorage.setItem("suiAddress", addr);
+          localStorage.setItem("suiInitialized", "true");
+          setAddress(addr);
+          fetchUserObjects(addr);
+          navigate('/HomePage');
+        } else {
+          // New user: prompt for username to initialize account
+          setPendingAddress(addr);
+          setShowUsernameModal(true);
+        }
+      } catch (err) {
+        console.error('Error checking user objects during connect:', err);
+        // Fallback: show username modal so user can initialize
         setPendingAddress(addr);
         setShowUsernameModal(true);
       }

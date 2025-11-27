@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Header from "./Header";
 import styles from "./PetStats.module.css";
 import { PACKAGE_ID, GLOBAL_STATS_ID, CLOCK_ID } from "./constants";
-import { getUserObjects, feedPet, playPet, sleepPet } from "./services/onePetApi";
+import { getUserObjects, feedPet, playPet, sleepPet, claimDailyReward } from "./services/onePetApi";
 
 const SUI_RPC = "https://rpc-testnet.onelabs.cc:443";
 
@@ -49,8 +49,16 @@ export default function PetStats({ darkMode, setDarkMode }) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [dailyRewardMessage, setDailyRewardMessage] = useState('');
+  const [dailyRewardLoading, setDailyRewardLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [userResources, setUserResources] = useState({ pets: [], cooldowns: [], inventories: [] });
+  const [userResources, setUserResources] = useState({ pets: [], cooldowns: [], inventories: [], dailyRewards: [], badges: [] });
+  const [currentPetIndex, setCurrentPetIndex] = useState(0);
+  const [allPetsData, setAllPetsData] = useState([]);
+  const [cooldownData, setCooldownData] = useState(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [dailyRewardData, setDailyRewardData] = useState(null);
+  const [canClaim, setCanClaim] = useState(false);
 
   // Check if wallet is still connected, redirect if not
   useEffect(() => {
@@ -99,7 +107,7 @@ export default function PetStats({ darkMode, setDarkMode }) {
       console.log('User objects:', objs);
 
       // Find pet NFT, cooldown, and inventory
-      const resources = { pets: [], cooldowns: [], inventories: [] };
+      const resources = { pets: [], cooldowns: [], inventories: [], dailyRewards: [], badges: [] };
       
       for (const obj of objs) {
         const type = obj?.data?.type || '';
@@ -111,32 +119,101 @@ export default function PetStats({ darkMode, setDarkMode }) {
           resources.cooldowns.push(id);
         } else if (type.includes('inventory::PlayerInventory')) {
           resources.inventories.push(id);
+        } else if (type.includes('reward_system::DailyReward')) {
+          resources.dailyRewards.push(id);
+        } else if (type.includes('profile_badge::ProfileBadge')) {
+          resources.badges.push(id);
         }
       }
 
       setUserResources(resources);
 
-      // Get detailed pet data if found
+      // Get detailed pet data for ALL pets
       if (resources.pets.length > 0) {
-        const petDetails = await getPetDetails(resources.pets[0]);
-        console.log('Pet details:', petDetails);
+        const petsData = [];
         
-        if (petDetails?.content?.fields) {
-          const fields = petDetails.content.fields;
-          const parsedData = {
-            id: petDetails.objectId,
-            name: fields.name,
-            pet_type: parseInt(fields.pet_type || '0', 10),
-            level: parseInt(fields.level || '1', 10),
-            experience: parseInt(fields.experience || '0', 10),
-            health: parseInt(fields.health || '100', 10),
-            hunger: parseInt(fields.hunger || '50', 10),
-            happiness: parseInt(fields.happiness || '50', 10),
-            energy: parseInt(fields.energy || '50', 10)
-          };
-          console.log('Parsed pet data:', parsedData);
-          console.log(`Level ${parsedData.level}: ${parsedData.experience} / ${parsedData.level * 100} XP`);
-          setPetData(parsedData);
+        for (const petId of resources.pets) {
+          const petDetails = await getPetDetails(petId);
+          
+          if (petDetails?.content?.fields) {
+            const fields = petDetails.content.fields;
+            const parsedData = {
+              id: petDetails.objectId,
+              name: fields.name,
+              pet_type: parseInt(fields.pet_type || '0', 10),
+              level: parseInt(fields.level || '1', 10),
+              experience: parseInt(fields.experience || '0', 10),
+              health: parseInt(fields.health || '100', 10),
+              hunger: parseInt(fields.hunger || '50', 10),
+              happiness: parseInt(fields.happiness || '50', 10),
+              energy: parseInt(fields.energy || '50', 10)
+            };
+            petsData.push(parsedData);
+          }
+        }
+        
+        setAllPetsData(petsData);
+        
+        // Set current pet to the one at currentPetIndex
+        if (petsData.length > 0) {
+          const indexToUse = Math.min(currentPetIndex, petsData.length - 1);
+          setPetData(petsData[indexToUse]);
+          setCurrentPetIndex(indexToUse);
+          
+          // Save selected pet ID to localStorage
+          localStorage.setItem('selectedPetId', petsData[indexToUse].id);
+        }
+      }
+
+      // Fetch cooldown data
+      if (resources.cooldowns.length > 0) {
+        const cooldownDetails = await getPetDetails(resources.cooldowns[0]);
+        if (cooldownDetails?.content?.fields) {
+          const fields = cooldownDetails.content.fields;
+          setCooldownData({
+            last_feed_time: parseInt(fields.last_feed_time || '0', 10),
+            last_play_time: parseInt(fields.last_play_time || '0', 10),
+            last_drink_time: parseInt(fields.last_drink_time || '0', 10)
+          });
+        }
+      }
+
+      // Fetch daily reward data
+      if (resources.dailyRewards.length > 0) {
+        const rewardDetails = await getPetDetails(resources.dailyRewards[0]);
+        if (rewardDetails?.content?.fields) {
+          const fields = rewardDetails.content.fields;
+          const lastClaimEpoch = parseInt(fields.last_claim_time || '0', 10);
+          const streakCount = parseInt(fields.streak_count || '0', 10);
+          
+          // Get current Sui epoch from RPC
+          const epochRes = await fetch(SUI_RPC, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              method: "suix_getLatestSuiSystemState",
+              params: []
+            }),
+          });
+          const epochData = await epochRes.json();
+          const currentEpoch = parseInt(epochData?.result?.epoch || '0', 10);
+          
+          const epochsSinceLastClaim = currentEpoch - lastClaimEpoch;
+          
+          // Contract bug: uses epoch numbers but compares against 86400
+          // After first claim, can only claim again after 86400 epochs (~237 years)
+          // So practically: can only claim if never claimed before
+          const canClaimNow = lastClaimEpoch === 0;
+          
+          setDailyRewardData({
+            lastClaimEpoch,
+            currentEpoch,
+            streakCount,
+            epochsSinceLastClaim
+          });
+          setCanClaim(canClaimNow);
         }
       }
     } catch (err) {
@@ -148,12 +225,112 @@ export default function PetStats({ darkMode, setDarkMode }) {
 
   useEffect(() => {
     fetchPetData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update current time every second for cooldown countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Cooldown durations in milliseconds
+  const COOLDOWN_TIMES = {
+    feed: 3600000,  // 1 hour
+    play: 1800000,  // 30 minutes
+    drink: 1800000, // 30 minutes
+    sleep: 0        // no cooldown
+  };
+
+  // Calculate remaining cooldown time
+  const getCooldownRemaining = (action) => {
+    if (!cooldownData) return 0;
+    if (action === 'sleep') return 0; // No cooldown for sleep
+    
+    const lastActionTime = cooldownData[`last_${action}_time`] || 0;
+    const cooldownDuration = COOLDOWN_TIMES[action] || 0;
+    const nextAvailableTime = lastActionTime + cooldownDuration;
+    const remaining = Math.max(0, nextAvailableTime - currentTime);
+    
+    return remaining;
+  };
+
+  // Format cooldown time as "1h 30m" or "45m 30s"
+  const formatCooldown = (ms) => {
+    if (ms <= 0) return '';
+    
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  };
+
+  // Switch to next or previous pet
+  const switchPet = (direction) => {
+    if (allPetsData.length <= 1) return;
+    
+    let newIndex;
+    if (direction === 'next') {
+      newIndex = (currentPetIndex + 1) % allPetsData.length;
+    } else {
+      newIndex = (currentPetIndex - 1 + allPetsData.length) % allPetsData.length;
+    }
+    
+    setCurrentPetIndex(newIndex);
+    setPetData(allPetsData[newIndex]);
+    
+    // Save selected pet ID to localStorage for other pages to use
+    localStorage.setItem('selectedPetId', allPetsData[newIndex].id);
+    console.log('🎯 Selected pet:', allPetsData[newIndex].name, allPetsData[newIndex].id);
+  };
+
+  // Claim daily check-in reward
+  const handleClaimDailyReward = async () => {
+    const dailyRewardId = userResources.dailyRewards[0];
+    const inventoryId = userResources.inventories[0];
+    const badgeId = userResources.badges[0];
+
+    if (!dailyRewardId || !inventoryId || !badgeId) {
+      setDailyRewardMessage('❌ Missing required resources. Please refresh the page.');
+      return;
+    }
+
+    try {
+      setDailyRewardLoading(true);
+      setDailyRewardMessage('⏳ Claiming daily reward...');
+      
+      await claimDailyReward(dailyRewardId, inventoryId, badgeId);
+      
+      setDailyRewardMessage('✅ Daily reward claimed! Check your inventory for items!');
+      setCanClaim(false);
+      
+      // Refresh data after claim
+      setTimeout(() => {
+        fetchPetData();
+        setDailyRewardMessage('');
+      }, 3000);
+    } catch (error) {
+      console.error('Claim daily reward error:', error);
+      setDailyRewardMessage(`❌ Failed to claim reward: ${error.message || 'Unknown error'}`);
+    } finally {
+      setDailyRewardLoading(false);
+    }
+  };
 
   //demo logic only
   // On-chain aware actions: prepare CLI or attempt wallet call
   const runOnChainAction = async (action) => {
-    const petId = userResources.pets[0];
+    const petId = petData?.id; // Use current pet's ID
     const cooldownId = userResources.cooldowns[0];
     const inventoryId = userResources.inventories[0];
 
@@ -253,6 +430,8 @@ export default function PetStats({ darkMode, setDarkMode }) {
                 <img src="/img/Hamburger_icon.png" width="30px"></img>
               </button>
               <div className={open ? styles.content : styles.hide}>
+                <Link to="/Profile">Profile</Link>
+                <Link to="/Achievements">Achievements</Link>
                 <Link to="/Shop">Shop</Link>
                 <Link to="/Spin">Daily Spin</Link>
                 <Link to="/Battle">Battle</Link>
@@ -262,6 +441,52 @@ export default function PetStats({ darkMode, setDarkMode }) {
             <h2>{petData.name}</h2>
             <span className={styles.level}>Lv.{petData.level}</span>
           </div>
+
+          {/* Pet Navigation - Show only if user has multiple pets */}
+          {allPetsData.length > 1 && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              gap: '1rem', 
+              margin: '1rem 0',
+              padding: '0.5rem',
+              backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              borderRadius: '8px'
+            }}>
+              <button 
+                onClick={() => switchPet('prev')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '1.2rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: darkMode ? '#444' : '#ddd',
+                  color: darkMode ? '#fff' : '#000',
+                  cursor: 'pointer'
+                }}
+              >
+                ←
+              </button>
+              <span style={{ fontSize: '1rem', fontWeight: 'bold' }}>
+                Pet {currentPetIndex + 1} / {allPetsData.length}
+              </span>
+              <button 
+                onClick={() => switchPet('next')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '1.2rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: darkMode ? '#444' : '#ddd',
+                  color: darkMode ? '#fff' : '#000',
+                  cursor: 'pointer'
+                }}
+              >
+                →
+              </button>
+            </div>
+          )}
 
           <div style={{ fontSize: "100px", textAlign: "center", margin: "1rem 0" }}>
             {petEmoji}
@@ -371,6 +596,90 @@ export default function PetStats({ darkMode, setDarkMode }) {
             </div>
           </div>
 
+          {/* Daily Check-In Section */}
+          {userResources.dailyRewards.length > 0 && (
+            <div className={styles.section} style={{ marginTop: '1.5rem' }}>
+              <h3>📅 Daily Check-In</h3>
+              <div style={{
+                padding: '1rem',
+                borderRadius: '8px',
+                backgroundColor: canClaim ? '#d4edda' : '#f8d7da',
+                border: `2px solid ${canClaim ? '#c3e6cb' : '#f5c6cb'}`,
+                marginBottom: '1rem'
+              }}>
+                {dailyRewardData && (
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                      🔥 Current Streak: {dailyRewardData.streakCount} {dailyRewardData.streakCount === 1 ? 'day' : 'days'}
+                    </div>
+                    <div style={{ fontSize: '0.9rem' }}>
+                      💎 Rewards: {Math.floor((50 + (dailyRewardData.streakCount * 10)) / 10)} items + 5 Reputation
+                    </div>
+                    <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', color: '#856404' }}>
+                      (Contract bug: Only {Math.floor((50 + (dailyRewardData.streakCount * 10)) / 10)} items awarded instead of {50 + (dailyRewardData.streakCount * 10)})
+                    </div>
+                    {!canClaim && dailyRewardData.lastClaimEpoch > 0 && (
+                      <div style={{ fontSize: '0.9rem', marginTop: '0.75rem', padding: '0.5rem', backgroundColor: '#fff3cd', borderRadius: '6px', fontWeight: 'bold' }}>
+                        ⚠️ Already claimed at epoch {dailyRewardData.lastClaimEpoch}
+                        <br />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'normal' }}>
+                          Contract bug: Rewards locked - requires 86400 epochs (~237 years) between claims
+                        </span>
+                      </div>
+                    )}
+                    {canClaim && (
+                      <div style={{ fontSize: '0.9rem', marginTop: '0.75rem', padding: '0.5rem', backgroundColor: '#d1ecf1', borderRadius: '6px', fontWeight: 'bold', color: '#0c5460' }}>
+                        ✨ Ready to claim your daily reward!
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {dailyRewardMessage && (
+                  <div style={{
+                    padding: '0.75rem',
+                    marginTop: '0.75rem',
+                    borderRadius: '8px',
+                    backgroundColor: dailyRewardMessage.includes('✅') 
+                      ? (darkMode ? '#064e3b' : '#d4edda') 
+                      : dailyRewardMessage.includes('❌') 
+                        ? (darkMode ? '#7f1d1d' : '#f8d7da') 
+                        : (darkMode ? '#78350f' : '#fff3cd'),
+                    color: darkMode ? '#fff' : (dailyRewardMessage.includes('✅') ? '#155724' : dailyRewardMessage.includes('❌') ? '#721c24' : '#856404'),
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    border: `1px solid ${dailyRewardMessage.includes('✅') 
+                      ? (darkMode ? '#10b981' : '#c3e6cb') 
+                      : dailyRewardMessage.includes('❌') 
+                        ? (darkMode ? '#ef4444' : '#f5c6cb') 
+                        : (darkMode ? '#f59e0b' : '#ffeeba')}`
+                  }}>
+                    {dailyRewardMessage}
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleClaimDailyReward}
+                  disabled={!canClaim || dailyRewardLoading}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '1rem',
+                    fontWeight: 'bold',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: canClaim && !dailyRewardLoading ? '#28a745' : '#ccc',
+                    color: 'white',
+                    cursor: canClaim && !dailyRewardLoading ? 'pointer' : 'not-allowed',
+                    marginTop: '0.5rem'
+                  }}
+                >
+                  {dailyRewardLoading ? '⏳ Claiming...' : canClaim ? '🎁 Claim Daily Reward' : '✅ Already Claimed'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className={styles.section}>
             <h3>Care for Your Pet</h3>
             
@@ -379,24 +688,60 @@ export default function PetStats({ darkMode, setDarkMode }) {
                 padding: '1rem',
                 marginBottom: '1rem',
                 borderRadius: '8px',
-                backgroundColor: actionMessage.includes('✅') ? '#d4edda' : actionMessage.includes('❌') ? '#f8d7da' : '#fff3cd',
-                color: actionMessage.includes('✅') ? '#155724' : actionMessage.includes('❌') ? '#721c24' : '#856404',
+                backgroundColor: actionMessage.includes('✅') 
+                  ? (darkMode ? '#064e3b' : '#d4edda') 
+                  : actionMessage.includes('❌') 
+                    ? (darkMode ? '#7f1d1d' : '#f8d7da') 
+                    : (darkMode ? '#78350f' : '#fff3cd'),
+                color: darkMode ? '#fff' : (actionMessage.includes('✅') ? '#155724' : actionMessage.includes('❌') ? '#721c24' : '#856404'),
                 textAlign: 'center',
                 fontWeight: 'bold',
-                border: `1px solid ${actionMessage.includes('✅') ? '#c3e6cb' : actionMessage.includes('❌') ? '#f5c6cb' : '#ffeeba'}`
+                border: `1px solid ${actionMessage.includes('✅') 
+                  ? (darkMode ? '#10b981' : '#c3e6cb') 
+                  : actionMessage.includes('❌') 
+                    ? (darkMode ? '#ef4444' : '#f5c6cb') 
+                    : (darkMode ? '#f59e0b' : '#ffeeba')}`
               }}>
                 {actionMessage}
               </div>
             )}
             
             <div className={styles.actions}>
-              <button className={styles.feed} onClick={() => runOnChainAction("feed")} disabled={actionLoading}>
-                🍖 Feed <br /> {actionLoading ? '⏳' : '(on-chain)'}
+              <button 
+                className={styles.feed} 
+                onClick={() => runOnChainAction("feed")} 
+                disabled={actionLoading || getCooldownRemaining('feed') > 0}
+              >
+                🍖 Feed
+                {getCooldownRemaining('feed') > 0 ? (
+                  <div style={{ fontSize: '0.8rem', marginTop: '0.3rem' }}>
+                    ⏰ {formatCooldown(getCooldownRemaining('feed'))}
+                  </div>
+                ) : (
+                  <br />
+                )}
+                {actionLoading ? '⏳' : getCooldownRemaining('feed') > 0 ? '' : '(on-chain)'}
               </button>
-              <button className={styles.play} onClick={() => runOnChainAction("play")} disabled={actionLoading}>
-                🎮 Play <br /> {actionLoading ? '⏳' : '(on-chain)'}
+              <button 
+                className={styles.play} 
+                onClick={() => runOnChainAction("play")} 
+                disabled={actionLoading || getCooldownRemaining('play') > 0}
+              >
+                🎮 Play
+                {getCooldownRemaining('play') > 0 ? (
+                  <div style={{ fontSize: '0.8rem', marginTop: '0.3rem' }}>
+                    ⏰ {formatCooldown(getCooldownRemaining('play'))}
+                  </div>
+                ) : (
+                  <br />
+                )}
+                {actionLoading ? '⏳' : getCooldownRemaining('play') > 0 ? '' : '(on-chain)'}
               </button>
-              <button className={styles.sleep} onClick={() => runOnChainAction("sleep")} disabled={actionLoading}>
+              <button 
+                className={styles.sleep} 
+                onClick={() => runOnChainAction("sleep")} 
+                disabled={actionLoading}
+              >
                 🌙 Sleep <br /> {actionLoading ? '⏳' : '(on-chain)'}
               </button>
             </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import styles from "./Spin.module.css";
 import Header from "./Header";
-import { getUserObjects, spinWheel, getPetTokenBalance } from "./services/onePetApi";
+import { getUserObjects, spinWheel, getPetTokenBalance, checkCanSpin } from "./services/onePetApi";
 
 const rewards = [
   "10-30 Tokens",
@@ -67,7 +67,6 @@ export default function Spin({ darkMode, setDarkMode }) {
   // Load user resources
   useEffect(() => {
     loadUserData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUserData = async () => {
@@ -119,17 +118,30 @@ export default function Spin({ darkMode, setDarkMode }) {
       console.log('User resources:', resources);
       setUserResources(resources);
       
-      // Check if user can spin (has daily tracker and hasn't used spin today)
+      // Check if user can spin using the Move contract function
       if (resources.dailyTrackers.length > 0) {
-        const wheelSpinsUsed = resources.dailyTrackers[0].wheelSpinsUsed;
-        console.log('Wheel spins used:', wheelSpinsUsed);
+        const dailyTrackerId = resources.dailyTrackers[0].id;
+        const canSpinResult = await checkCanSpin(dailyTrackerId);
         
-        if (wheelSpinsUsed < 1) {
+        console.log('Can spin result from contract:', canSpinResult);
+        
+        if (canSpinResult) {
           setCanSpin(true);
-          setMessage('');
+          setMessage('✅ Free daily spin available!');
         } else {
-          setCanSpin(false);
-          setMessage('✅ Daily spin already used today. Come back tomorrow!');
+          // devInspect parsing can be unreliable across wallets; fall back to
+          // reading the local DailyTracker fields we already fetched from RPC.
+          const tracker = resources.dailyTrackers[0];
+          const inferredCanSpin = tracker && (tracker.wheelSpinsUsed < tracker.maxSpins);
+
+          if (inferredCanSpin) {
+            console.warn('canSpin devInspect returned false but DailyTracker fields indicate availability — using fallback.');
+            setCanSpin(true);
+            setMessage('✅ Free daily spin available! (inferred)');
+          } else {
+            setCanSpin(false);
+            setMessage('⏰ Daily spin already used today. Come back tomorrow!');
+          }
         }
       } else {
         setCanSpin(false);
@@ -226,49 +238,82 @@ export default function Spin({ darkMode, setDarkMode }) {
     try {
       console.log('Full spin response:', JSON.stringify(response, null, 2));
       
-      // Try to extract reward info from transaction effects
-      const effects = response?.effects;
+      // WheelReward is returned directly from spin_wheel function
+      const effects = response?.effects || response;
       const events = effects?.events || [];
-      
-      console.log('Events found:', events);
-      
-      // Look for wheel reward event
+
+      console.log('Events found:', events.length);
+
+      // 1) Try to parse structured events first (if the node/wallet decoded them)
       for (const event of events) {
-        console.log('Checking event:', event);
-        
-        // Check multiple possible type formats
-        const eventType = event.type || event.moveEventType || '';
+        const eventType = event.type || '';
         console.log('Event type:', eventType);
-        
-        if (eventType.includes('WheelReward') || eventType.includes('wheel')) {
-          const fields = event.parsedJson || event.fields || event;
-          console.log('Event fields:', fields);
-          
-          const rewardType = fields.reward_type || fields.rewardType || 0;
-          const amount = fields.amount || 0;
-          const itemId = fields.item_id || fields.itemId;
-          
-          console.log('Parsed:', { rewardType, amount, itemId });
-          
-          if (rewardType === 0) {
-            return `🪙 Won ${amount} PetTokens!`;
-          } else if (rewardType === 1) {
-            return `⭐ Won ${amount} Experience Points!`;
-          } else if (rewardType === 2) {
-            const itemName = ITEM_NAMES[itemId] || `Item #${itemId}`;
-            return `🎁 Won ${itemName}!`;
-          } else if (rewardType === 3) {
-            return `💎 JACKPOT! Won ${amount} Rare PetTokens!`;
+
+        if (event.parsedJson) {
+          const fields = event.parsedJson || {};
+          console.log('Event parsedJson fields:', fields);
+
+          const rewardType = parseInt(fields.reward_type || fields.rewardType || '0', 10);
+          const amount = parseInt(fields.amount || fields.amount || '0', 10);
+
+          if (!Number.isNaN(rewardType)) {
+            if (rewardType === 0) return `🪙 Won ${amount || ''} PetTokens!`;
+            if (rewardType === 1) return `⭐ Won ${amount || ''} Experience Points!`;
+            if (rewardType === 2) return `🎁 Won a Random Item! Check your inventory.`;
+            if (rewardType === 3) return `💎 JACKPOT! Won ${amount || ''} Rare PetTokens!`;
           }
         }
       }
+
+      // 2) Object changes are the most reliable fallback. Inspect them closely.
+      const objectChanges = effects?.objectChanges || effects?.object_changes || [];
+      console.log('Object changes count:', objectChanges.length, objectChanges);
+
+      // Helper: format item name from item id
+      const itemName = (id) => ITEM_NAMES?.[id] || `Item #${id}`;
+
+      for (const change of objectChanges) {
+        const t = change.type;
+        const objType = change.objectType || change.object_type || '';
+        console.log('Processing change type:', t, 'objType:', objType);
+
+        // Token minted or balance updated -> PetCoin object
+        if ((t === 'created' || t === 'mutated') && objType && objType.toLowerCase().includes('petcoin')) {
+          console.log('Matched PetCoin');
+          const balance = change?.content?.fields?.balance || null;
+          if (balance) {
+            const newBalance = Number(balance);
+            const won = t === 'created' ? newBalance : newBalance - petTokenBalance;
+            return `🪙 Won ${won.toLocaleString()} PetTokens!`;
+          }
+          return '🪙 Won PetTokens! Check your balance.';
+        }
+
+        // Inventory mutated -> likely an item added. Try to read items array and show last item
+        if ((t === 'mutated' || t === 'created') && objType.includes('PlayerInventory')) {
+          console.log('Matched PlayerInventory');
+          const items = change?.content?.fields?.items;
+          if (Array.isArray(items) && items.length > 0) {
+            const last = items[items.length - 1];
+            const itemId = typeof last === 'object' && last?.value ? Number(last.value) : Number(last);
+            if (!Number.isNaN(itemId)) return `🎁 Won ${itemName(itemId)}! Check your inventory.`;
+          }
+          return '🎁 Won an Item! Check your inventory.';
+        }
+
+        // PetNFT mutated -> experience/level change
+        if ((t === 'mutated' || t === 'created') && (objType.includes('pet_stats::PetNFT') || objType.includes('PetNFT'))) {
+          console.log('Matched PetNFT');
+          const level = change?.content?.fields?.level;
+          const exp = change?.content?.fields?.experience;
+          if (level) return `⭐ Your pet leveled up to ${level}!`;
+          if (exp) return `⭐ Your pet gained experience!`;
+          return '⭐ Won Experience! Check your pet.';
+        }
+      }
       
-      // Try to extract from objectChanges as fallback
-      const objectChanges = effects?.objectChanges || [];
-      console.log('Object changes:', objectChanges);
-      
-      // Default fallback with more info
-      return 'You won a mystery prize! Check your inventory and balance. 🎉';
+      // Default fallback
+      return 'You won a prize! Check your inventory and balance. 🎉';
     } catch (err) {
       console.error('Error parsing spin result:', err);
       return 'You won a prize! Check your inventory and balance. 🎉';
