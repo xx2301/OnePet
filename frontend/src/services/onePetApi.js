@@ -301,9 +301,9 @@ export async function removeItemFromInventory(inventoryId, itemId) {
 // Check if user can spin (using Move view function)
 export async function checkCanSpin(dailyTrackerId) {
   try {
-    // Convert to SECONDS (contract expects seconds, not milliseconds)
-    const currentTime = Math.floor(Date.now() / 1000);
-    console.log('Checking can spin with time (seconds):', currentTime);
+    // Convert to MILLISECONDS (contract expects milliseconds, not seconds)
+    const currentTime = Date.now();
+    console.log('Checking can spin with time (milliseconds):', currentTime);
     
     const wallet = window.onechainWallet || window.onewallet || window.oneWallet;
     if (!wallet) {
@@ -338,11 +338,28 @@ export async function checkCanSpin(dailyTrackerId) {
     // Try several strategies to decode the boolean return value.
     try {
       const res0 = result?.results?.[0];
-      const returnValues = res0?.returnValues || res0?.return_value || [];
+      const returnValues = res0?.returnValues || res0?.return_value || result?.returnValues || [];
 
       // Case 1: already parsed nested array like [[1]]
       if (Array.isArray(returnValues) && returnValues.length > 0) {
         const first = returnValues[0];
+
+        // Check if it's already a boolean
+        if (typeof first === 'boolean') {
+          console.log('Decoded canSpin from boolean:', first);
+          return first;
+        }
+
+        // Check if it's [value, type] format (standard Sui return format)
+        if (Array.isArray(first) && first.length === 2) {
+          const [value, type] = first;
+          if (type === 'bool') {
+            const canSpin = Boolean(value);
+            console.log('Decoded canSpin from [value, type] bool:', canSpin);
+            return canSpin;
+          }
+        }
+
         if (Array.isArray(first) && first.length > 0 && typeof first[0] === 'number') {
           const canSpin = first[0] === 1;
           console.log('Decoded canSpin from nested numeric array:', canSpin);

@@ -646,9 +646,6 @@ export default function PetStats({ darkMode, setDarkMode }) {
                     <div style={{ fontSize: '0.9rem' }}>
                       💎 Rewards: {Math.floor((50 + (dailyRewardData.streakCount * 10)) / 10)} items + 5 Reputation
                     </div>
-                    <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', color: '#856404' }}>
-                      (Contract bug: Only {Math.floor((50 + (dailyRewardData.streakCount * 10)) / 10)} items awarded instead of {50 + (dailyRewardData.streakCount * 10)})
-                    </div>
                     {!canClaim && dailyRewardData.lastClaimEpoch > 0 && (
                       <div style={{ fontSize: '0.9rem', marginTop: '0.75rem', padding: '0.5rem', backgroundColor: '#fff3cd', borderRadius: '6px', fontWeight: 'bold' }}>
                         ⚠️ Already claimed at epoch {dailyRewardData.lastClaimEpoch}

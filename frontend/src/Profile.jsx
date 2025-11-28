@@ -266,9 +266,6 @@ export default function Profile({ darkMode, setDarkMode }) {
                 <div className={styles.statIcon}>🐾</div>
                 <div className={styles.statValue}>{profileData.petsOwned}</div>
                 <div className={styles.statLabel}>Pets Owned</div>
-                <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', opacity: 0.8 }}>
-                  (Live count)
-                </div>
               </div>
             </div>
             <p style={{ 
