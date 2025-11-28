@@ -1,7 +1,7 @@
 module OnePet::random_system {
 
     use one::tx_context;
-        
+
     public fun random_between(min: u64, max: u64, ctx: &mut tx_context::TxContext): u64 {
         if (min == max) {
             return min
@@ -10,15 +10,13 @@ module OnePet::random_system {
         let epoch = tx_context::epoch(ctx);
         let range = max - min + 1;
         
-        let a: u128 = 6364136223846793005;
-        let c: u128 = 1442695040888963407;
-        let m: u128 = 2^64;
+        let seed1 = epoch * 1664525 + 1013904223;
+        let seed2 = epoch * 22695477 + 1;
         
-        let seed: u128 = (epoch as u128) * a + c;
-        let random_num = (seed % m) as u64;
-        let result = min + (random_num % range);
+        let combined_seed = (seed1 + seed2) % 1000000;
+        let random_value = combined_seed % range;
         
-        result
+        min + random_value
     }
     
     public fun random_chance(percent: u64, ctx: &mut tx_context::TxContext): bool {
