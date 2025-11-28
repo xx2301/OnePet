@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate, Link } from "react-router";
 import styles from "./Spin.module.css";
 import Header from "./Header";
 import { getUserObjects, spinWheel, getPetTokenBalance, checkCanSpin } from "./services/onePetApi";
@@ -65,11 +65,33 @@ export default function Spin({ darkMode, setDarkMode }) {
   }, [navigate]);
 
   // Load user resources
-  useEffect(() => {
-    loadUserData();
-  }, []);
+  // Moved to after loadUserData definition to avoid temporal dead zone error
 
-  const loadUserData = async () => {
+  // Update cooldown timer every second
+  useEffect(() => {
+    if (!canSpin && !loading) {
+      const interval = setInterval(() => {
+        const now = new Date();
+        const nextMidnight = new Date(now);
+        nextMidnight.setUTCHours(24, 0, 0, 0); // Next UTC midnight
+        
+        const timeLeft = nextMidnight - now;
+        if (timeLeft > 0) {
+          const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+          const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+          const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          
+          // Update message with countdown
+          setMessage(`⏰ Daily spin already used today. Next spin in: ${formattedTime}`);
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [canSpin, loading]);
+
+  const loadUserData = useCallback(async () => {
     const addr = localStorage.getItem("suiAddress");
     if (!addr) return;
 
@@ -140,7 +162,7 @@ export default function Spin({ darkMode, setDarkMode }) {
             setMessage('✅ Free daily spin available! (inferred)');
           } else {
             setCanSpin(false);
-            setMessage('⏰ Daily spin already used today. Come back tomorrow!');
+            setMessage('⏰ Daily spin already used today. Next spin available at midnight UTC.');
           }
         }
       } else {
@@ -154,7 +176,12 @@ export default function Spin({ darkMode, setDarkMode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Load user resources
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
 
   const startSpin = async () => {
     if (spinning || !canSpin) return;
@@ -209,7 +236,7 @@ export default function Spin({ darkMode, setDarkMode }) {
       setTimeout(() => {
         setSpinning(false);
         setResult(spinResult);
-        setMessage(`✅ ${spinResult} Daily spin used.`);
+        setMessage(`✅ ${spinResult} Next spin available at midnight UTC.`);
         
         // Refresh data after longer delay to ensure blockchain has updated
         setTimeout(() => {
@@ -223,7 +250,7 @@ export default function Spin({ darkMode, setDarkMode }) {
       setSpinning(false);
       
       if (error.message?.includes('413')) {
-        setMessage('❌ Daily spin limit reached! Come back tomorrow.');
+        setMessage('❌ Daily spin limit reached! Next spin available at midnight UTC.');
       } else {
         setMessage(`❌ Spin failed: ${error.message || 'Unknown error'}`);
         // Re-enable if it was a different error (not limit reached)
@@ -336,13 +363,8 @@ export default function Spin({ darkMode, setDarkMode }) {
     <div className={styles.page} style={{ overflowY: 'auto', height: '100vh' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1rem 2rem 2rem' }}>
         <h2 className={styles.title} style={{ marginBottom: '1rem', marginTop: '0' }}>🎰 Daily Spin Wheel</h2>
+        <Link to="/PetStats" style={{ marginBottom: '1rem', color: darkMode ? 'white' : '#222', textDecoration: 'none', fontSize: '1.1rem' }}>← Back to Pet Stats</Link>
         
-        <div style={{ textAlign: 'center', marginBottom: '1rem', width: '100%', maxWidth: '800px' }}>
-          <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
-            PetTokens: {petTokenBalance.toLocaleString()}
-          </p>
-        </div>
-
         {message && (
           <div style={{
             width: '100%',

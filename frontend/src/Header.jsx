@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import styles from './Header.module.css'
 import { getPetTokenBalance } from './services/onePetApi'
+import { Link } from 'react-router'
 
 export default function Header({ darkMode, setDarkMode }) {
     const [wallet, setWallet] = useState(null);
@@ -54,7 +55,7 @@ export default function Header({ darkMode, setDarkMode }) {
 
     return (
         <nav className={styles.navbar}>
-            <h1 className={styles.logo}>OnePet</h1>
+            <Link to="/PetStats" className={styles.logo} style={{ color: darkMode ? 'white' : '#222' }}>OnePet</Link>
             <div>
                 <button className={styles.toggle} onClick={() => setDarkMode(!darkMode)}>
                     {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}

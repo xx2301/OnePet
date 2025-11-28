@@ -98,10 +98,16 @@ export default function Profile({ darkMode, setDarkMode }) {
           const badgeDetails = await getObjectDetails(badgeId);
           if (badgeDetails?.content?.fields) {
             const fields = badgeDetails.content.fields;
+            // Get battles won from localStorage (fallback to contract value)
+            const userAddress = localStorage.getItem("suiAddress");
+            const localBattlesWon = userAddress ? parseInt(localStorage.getItem(`battlesWon_${userAddress}`) || '0', 10) : 0;
+            const contractBattlesWon = parseInt(fields.battles_won || '0', 10);
+            const battlesWon = Math.max(localBattlesWon, contractBattlesWon); // Use whichever is higher
+            
             setProfileData({
               username: fields.username || 'Unknown',
               reputation: parseInt(fields.reputation || '0', 10),
-              battlesWon: parseInt(fields.battles_won || '0', 10),
+              battlesWon: battlesWon,
               // Use actual pet count from objects instead of badge field
               petsOwned: petCount
             });
@@ -255,9 +261,6 @@ export default function Profile({ darkMode, setDarkMode }) {
                 <div className={styles.statIcon}>⚔️</div>
                 <div className={styles.statValue}>{profileData.battlesWon}</div>
                 <div className={styles.statLabel}>Battles Won</div>
-                <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', opacity: 0.8 }}>
-                  (Not tracked)*
-                </div>
               </div>
               <div className={styles.statCard}>
                 <div className={styles.statIcon}>🐾</div>

@@ -83,6 +83,14 @@ export default function Battle({darkMode, setDarkMode}) {
         console.log('📌 Using first available pet');
       }
       
+      // Find profile badge
+      const badgeObj = objs.find(obj => obj?.data?.type?.includes('profile_badge::ProfileBadge'));
+      if (badgeObj) {
+        console.log('🏆 Found profile badge:', badgeObj.data.objectId);
+      } else {
+        console.warn('⚠️ No profile badge found');
+      }
+      
       if (petObj) {
         const fields = petObj?.data?.content?.fields;
         const pet = {
@@ -315,6 +323,16 @@ export default function Battle({darkMode, setDarkMode}) {
             tokensEarned: tokensEarned,
             victory: petWon
           });
+          
+          // Track battle wins locally since contract doesn't support it
+          if (petWon) {
+            const userAddress = localStorage.getItem("suiAddress");
+            if (userAddress) {
+              const currentWins = parseInt(localStorage.getItem(`battlesWon_${userAddress}`) || '0', 10);
+              localStorage.setItem(`battlesWon_${userAddress}`, (currentWins + 1).toString());
+              console.log(`Battle win recorded! Total wins: ${currentWins + 1}`);
+            }
+          }
           
           if (petWon) {
             setMessage(`🎉 Victory! Earned ${tokensEarned} tokens and ${expGain} EXP!`);
