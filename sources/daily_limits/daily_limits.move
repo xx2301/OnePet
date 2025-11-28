@@ -25,16 +25,18 @@ module OnePet::daily_limits {
     public fun can_spin(tracker: &mut DailyTracker, clock: &Clock): bool {
         let current_time = one::clock::timestamp_ms(clock);
         if (current_time >= tracker.last_spin_date + 86400000) {
-                tracker.spins_used_today = 0;
-                tracker.last_spin_date = current_time;
+            tracker.spins_used_today = 0;
         };
-        tracker.spins_used_today < tracker.max_daily_spins        
+        
+        tracker.spins_used_today < tracker.max_daily_spins
     }
     
-    public fun record_spin(tracker: &mut DailyTracker) {
+    public fun record_spin(tracker: &mut DailyTracker, clock: &Clock) {
         tracker.spins_used_today = tracker.spins_used_today + 1;
+        tracker.last_spin_date = one::clock::timestamp_ms(clock);
     }
 
+    #[test_only]
     public fun transfer_test_daily_tracker(daily_tracker: DailyTracker, recipient: address) {
         transfer::transfer(daily_tracker, recipient);
     }
@@ -47,5 +49,11 @@ module OnePet::daily_limits {
             spins_used_today: 0,
             max_daily_spins: 1,
         }
+    }
+
+    #[test_only]
+    public fun record_spin_for_test(tracker: &mut DailyTracker, timestamp: u64) {
+        tracker.spins_used_today = tracker.spins_used_today + 1;
+        tracker.last_spin_date = timestamp;
     }
 }

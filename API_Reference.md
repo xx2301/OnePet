@@ -178,7 +178,7 @@ Get pets owned count
 ### can_spin(tracker: &mut DailyTracker, clock: &Clock): bool
 - Check whether can spin (Free spin per day)
 
-### record_spin(tracker: &mut DailyTracker)
+### record_spin(tracker: &mut DailyTracker, clock: &Clock)
 - Record wheel spin usage
 
 ## Cooldown System
