@@ -23,22 +23,28 @@ module OnePet::wheel_system {
         description: vector<u8>
     }
     
-    #[allow(unused_field)]
-    public struct WheelSpun has copy, drop {
-        player: address,
-        reward_type: u64,
-        amount: u64
+    public fun can_spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, clock: &Clock): bool {
+        daily_limits::can_spin(daily_tracker, clock)
     }
     
-    public entry fun spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, clock: &Clock, ctx: &mut tx_context::TxContext): WheelReward {
-        assert!(daily_limits::can_spin(daily_tracker, clock), EDAILY_LIMIT_EXCEEDED);
-        daily_limits::record_spin(daily_tracker, clock);
+    public fun get_remaining_spins(daily_tracker: &mut daily_limits::DailyTracker, clock: &Clock): u64 {
+        daily_limits::get_remaining_spins(daily_tracker, clock)
+    }
+    
+    public fun get_next_reset_time(daily_tracker: &daily_limits::DailyTracker, clock: &Clock): u64 {
+        daily_limits::get_next_reset_time(daily_tracker, clock)
+    }
 
+    public fun get_time_until_next_spin(daily_tracker: &daily_limits::DailyTracker, clock: &Clock): u64 {
+        daily_limits::get_time_until_next_spin(daily_tracker, clock)
+    }
+
+    public fun generate_wheel_reward(player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, player: address, ctx: &mut tx_context::TxContext): WheelReward {
         let seed = random_system::random_between(0, 100, ctx);
 
-        let reward = if (seed < 40) {
+        if (seed < 40) {
             let token_amount = random_system::random_between(10, 30, ctx);
-            pet_token::mint_test_tokens(tx_context::sender(ctx), token_amount, ctx);
+            pet_token::mint_test_tokens(player, token_amount, ctx);
             WheelReward {
                 reward_type: REWARD_TOKENS,
                 amount: token_amount,
@@ -62,18 +68,24 @@ module OnePet::wheel_system {
             }
         } else {
             let rare_amount = random_system::random_between(50, 100, ctx);
-            pet_token::mint_test_tokens(tx_context::sender(ctx), rare_amount, ctx);
+            pet_token::mint_test_tokens(player, rare_amount, ctx);
             WheelReward {
                 reward_type: REWARD_RARE,
                 amount: rare_amount,
                 description: b"Rare Reward!"
             }
-        };
-        reward
+        }
+    }
+    
+    public entry fun spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, clock: &Clock, ctx: &mut tx_context::TxContext): WheelReward {
+        assert!(can_spin_wheel(daily_tracker, clock), EDAILY_LIMIT_EXCEEDED);
+        
+        daily_limits::record_spin(daily_tracker, clock);
+        generate_wheel_reward(player_inventory, pet, tx_context::sender(ctx), ctx)
     }
     
     #[test]
-    fun test_spin_wheel_multiple_times() {
+    fun test_spin_wheel() {
         let mut ctx = tx_context::dummy();
         
         let mut daily_tracker = daily_limits::create_test_daily_tracker(@0x1, &mut ctx);

@@ -80,6 +80,9 @@ Move Contract API Reference
   - 25%: Item Reward (randomly)
   - 5%: Rare Price (50-100 Pet Token)
 
+### get_time_until_next_spin(daily_tracker: &daily_limits::DailyTracker, clock: &Clock)
+- Get the next spin time
+
 ## 🏆 Reward System
 ### init_daily_reward(ctx: &mut tx_context::TxContext)
 - Initialize dailey reward for player
@@ -97,7 +100,7 @@ Move Contract API Reference
 ### mark_achievement_complete(achievement: &mut Achievement)
 - Mark achievement as completed
 
-### check_achievement(achievement: &mut Achievement, player_inventory: &mut inventory::PlayerInventory, badge: &mut profile_badge::ProfileBadge, ctx: &mut tx_context::TxContext)
+### claim_achievement_reward(achievement: &mut Achievement, player_inventory: &mut inventory::PlayerInventory, badge: &mut profile_badge::ProfileBadge, ctx: &mut tx_context::TxContext)
 - Check completed task and get rewards
 
 ## 🛒 Shop System
