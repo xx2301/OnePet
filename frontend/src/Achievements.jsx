@@ -101,9 +101,11 @@ export default function Achievements({ darkMode, setDarkMode }) {
 
       for (const obj of objs) {
         const type = obj?.data?.type || '';
+        console.log('Checking object type:', type);
         
         // Count pets
-        if (type.includes('pet_token::PetNFT')) {
+        if (type.includes('pet_stats::PetNFT')) {
+          console.log('Found pet:', obj.data.objectId, 'type:', type);
           petCount++;
           
           // Check pet level
@@ -125,6 +127,7 @@ export default function Achievements({ darkMode, setDarkMode }) {
       console.log('🔍 Progress Detection:', { petCount, battleCount, maxPetLevel });
 
       // Fetch achievements data
+      const existingTypes = new Set();
       if (resources.achievements.length > 0) {
         const achievements = [];
         for (const achievementId of resources.achievements) {
@@ -134,15 +137,23 @@ export default function Achievements({ darkMode, setDarkMode }) {
             const achievementType = parseInt(fields.achievement_type || '0', 10);
             const isCompleted = fields.completed === true;
             
+            existingTypes.add(achievementType);
+            
+            let eligible = false;
+            if (achievementType === 0 && petCount >= 1) eligible = true;
+            else if (achievementType === 1 && battleCount >= 1) eligible = true;
+            else if (achievementType === 2 && maxPetLevel >= 5) eligible = true;
+            
             achievements.push({
               id: achievementDetails.objectId,
               type: achievementType,
               completed: isCompleted,
-              claimed: fields.reward_claimed === true
+              claimed: fields.reward_claimed === true,
+              eligible: eligible
             });
 
             // AUTO-DETECT: Mark as complete if requirements met but not yet completed
-            if (!isCompleted) {
+            if (!isCompleted && eligible) {
               let shouldComplete = false;
               
               if (achievementType === 0 && petCount >= 1) {
@@ -168,12 +179,42 @@ export default function Achievements({ darkMode, setDarkMode }) {
                   achievements[achievements.length - 1].completed = true;
                 } catch (err) {
                   console.error('Failed to auto-complete achievement:', err);
+                  alert('Failed to auto-complete achievement: ' + err.message);
                 }
               }
             }
           }
         }
         setAchievementsData(achievements);
+      }
+
+      // AUTO-CREATE missing achievements if eligible
+      const achievementTypes = [0, 1, 2]; // First Pet, First Battle, Pet Level 5+
+      for (const type of achievementTypes) {
+        if (!existingTypes.has(type)) {
+          let eligible = false;
+          if (type === 0 && petCount >= 1) eligible = true;
+          else if (type === 1 && battleCount >= 1) eligible = true;
+          else if (type === 2 && maxPetLevel >= 5) eligible = true;
+
+          if (eligible) {
+            try {
+              console.log(`🔄 Auto-creating and completing achievement ${type}...`);
+              const newAchievementId = await createAchievement(type);
+              await markAchievementComplete(newAchievementId);
+              // Add to local state
+              setAchievementsData(prev => [...prev, {
+                id: newAchievementId,
+                type: type,
+                completed: true,
+                claimed: false
+              }]);
+            } catch (err) {
+              console.error(`Failed to auto-create achievement ${type}:`, err);
+              alert(`Failed to auto-create achievement ${type}: ` + err.message);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch achievements:', err);
@@ -461,7 +502,7 @@ export default function Achievements({ darkMode, setDarkMode }) {
                   rewards: 'Unknown'
                 };
 
-                const canClaimAchievement = achievement.completed && !achievement.claimed;
+                const canClaimAchievement = achievement.completed && !achievement.claimed && achievement.eligible;
 
                 return (
                   <div 
@@ -478,20 +519,33 @@ export default function Achievements({ darkMode, setDarkMode }) {
                       <div className={styles.achievementHeader}>
                         <span className={styles.icon}>{info.icon}</span>
                         <span className={styles.title}>{info.title}</span>
-                        {achievement.completed && (
+                        {achievement.completed && achievement.claimed && (
                           <span className={styles.status}>
-                            {achievement.claimed ? '✅ Claimed' : '🎁 Ready!'}
+                            ✅ Claimed
                           </span>
                         )}
-                        {!achievement.completed && (
+                        {achievement.completed && !achievement.claimed && achievement.eligible && (
+                          <span className={styles.status}>
+                            🎁 Ready!
+                          </span>
+                        )}
+                        {achievement.completed && !achievement.claimed && !achievement.eligible && (
+                          <span className={styles.status}>
+                            ❌ Invalid
+                          </span>
+                        )}
+                        {!achievement.completed && achievement.eligible && (
                           <span className={styles.statusProgress}>⏳ In Progress</span>
+                        )}
+                        {!achievement.completed && !achievement.eligible && (
+                          <span className={styles.statusProgress}>❌ Not Eligible</span>
                         )}
                       </div>
                       <div className={styles.description}>{info.description}</div>
                       <div className={styles.rewards}>🎁 {info.rewards}</div>
                     </div>
                     <div className={styles.actions}>
-                      {!achievement.completed && (
+                      {!achievement.completed && achievement.eligible && (
                         <button
                           onClick={() => handleMarkAchievementComplete(achievement.id)}
                           disabled={actionLoading}
