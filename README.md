@@ -37,4 +37,4 @@ Go to frontend/README.md for more information
 [Team member names, roles, and contact emails will be provided in submission form]
 
 ## Demo Video
-Check out our demo video: [YouTube Demo]([https://www.youtube.com/watch?v=dQw4w9WgXcQ](https://youtube.com/shorts/TY1mpNXA5Ao))
+Check out our demo video: [YouTube Demo]([https://youtube.com/shorts/TY1mpNXA5Ao])
