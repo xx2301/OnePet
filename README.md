@@ -19,11 +19,7 @@ one client publish --gas-budget 100000000
 ```
 
 ## Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Go to frontend/README.md for more information
 
 ## Project Structure
 - sources/ - Move smart contracts (all game logic)
