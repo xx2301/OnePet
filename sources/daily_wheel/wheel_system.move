@@ -32,7 +32,7 @@ module OnePet::wheel_system {
     
     public entry fun spin_wheel(daily_tracker: &mut daily_limits::DailyTracker, player_inventory: &mut inventory::PlayerInventory, pet: &mut pet_stats::PetNFT, clock: &Clock, ctx: &mut tx_context::TxContext): WheelReward {
         assert!(daily_limits::can_spin(daily_tracker, clock), EDAILY_LIMIT_EXCEEDED);
-        daily_limits::record_spin(daily_tracker);
+        daily_limits::record_spin(daily_tracker, clock);
 
         let seed = random_system::random_between(0, 100, ctx);
 

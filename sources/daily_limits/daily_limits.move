@@ -24,14 +24,11 @@ module OnePet::daily_limits {
     
     public fun can_spin(tracker: &mut DailyTracker, clock: &Clock): bool {
         let current_time = one::clock::timestamp_ms(clock);
-        let current_day = current_time / 86400000;
-        
-        if (tracker.last_spin_date / 86400000 < current_day) {
-            tracker.last_spin_date = current_time;
-            tracker.spins_used_today = 0;
+        if (current_time >= tracker.last_spin_date + 86400000) {
+                tracker.spins_used_today = 0;
+                tracker.last_spin_date = current_time;
         };
-        
-        tracker.spins_used_today < tracker.max_daily_spins
+        tracker.spins_used_today < tracker.max_daily_spins        
     }
     
     public fun record_spin(tracker: &mut DailyTracker) {
