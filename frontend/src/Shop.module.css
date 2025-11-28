@@ -4,6 +4,44 @@
   background: linear-gradient(180deg, #1a004d, #0b002b);
   min-height: 100vh;
   text-align: center;
+  transition: background 0.4s, color 0.4s;
+}
+
+.dark {
+  background: linear-gradient(to bottom right, #3b0a91, #0b1a7a, #082c5c);
+  color: white;
+}
+
+.light {
+  background: linear-gradient(to bottom right, #e8d3ff, #d9eaff, #ffffff);
+  color: #222;
+}
+
+.light .card {
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.2);
+  color: #222;
+}
+
+.light .price {
+  color: #b8860b;
+}
+
+.light .effect {
+  color: #666;
+}
+
+.light .shopButton {
+  background: linear-gradient(90deg, #4a148c, #7b1fa2);
+  color: white;
+}
+
+.light .shopButton:hover {
+  background: linear-gradient(90deg, #6a1b9a, #9c27b0);
+}
+
+.light .balance {
+  color: #222;
 }
 
 .balance {

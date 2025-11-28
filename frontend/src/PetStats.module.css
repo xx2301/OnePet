@@ -33,6 +33,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
 }
 
 .petHeader {
@@ -44,18 +45,92 @@
 
 .content {
   position: absolute;
-  background-color:lightblue;
+  top: 60px;
+  left: 20px;
+  min-width: 200px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(170, 0, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  margin-top: 0;
 }
-.content a{
+
+.content.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.dark .content {
+  background: rgba(30, 30, 50, 0.95);
+  border-color: rgba(170, 0, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.content a {
   display: block;
   text-decoration: none;
-  padding:20px;
-  border-bottom: 1px solid purple;
-
+  padding: 16px 20px;
+  color: #333;
+  font-weight: 500;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(170, 0, 255, 0.1);
+  position: relative;
 }
 
-.hide a {
-  display: none;
+.dark .content a {
+  color: #e0e0e0;
+  border-bottom-color: rgba(170, 0, 255, 0.2);
+}
+
+.content a:last-child {
+  border-bottom: none;
+}
+
+.content a:hover {
+  background: linear-gradient(135deg, rgba(170, 0, 255, 0.1), rgba(100, 100, 255, 0.1));
+  color: #6a0dad;
+  transform: translateX(4px);
+}
+
+.dark .content a:hover {
+  background: linear-gradient(135deg, rgba(170, 0, 255, 0.2), rgba(100, 100, 255, 0.2));
+  color: #c77dff;
+}
+
+.content a::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: linear-gradient(135deg, #6a0dad, #4a90e2);
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+  border-radius: 0 2px 2px 0;
+}
+
+.content a:hover::before {
+  transform: scaleY(1);
+}
+
+.hide {
+  opacity: 0 !important;
+  transform: translateY(-10px) scale(0.95) !important;
+  pointer-events: none !important;
+}
+
+/* Hamburger icon rotation animation */
+.hamburgerOpen img {
+  transform: rotate(90deg);
 }
 
 .level {

@@ -424,18 +424,49 @@ export default function PetStats({ darkMode, setDarkMode }) {
       <Header darkMode={darkMode} setDarkMode={setDarkMode} />
       <div className={styles.container}>
         <div className={styles.petCard}>
+          {/* Hamburger Menu - Top Left Corner */}
+          <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10 }}>
+            <button 
+              style={{ 
+                backgroundColor: "transparent", 
+                border: "none",
+                cursor: "pointer",
+                padding: "8px",
+                borderRadius: "8px",
+                transition: "all 0.2s ease",
+                position: "relative"
+              }} 
+              onClick={() => setOpen(!open)}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = "transparent";
+              }}
+              className={open ? styles.hamburgerOpen : ""}
+            >
+              <img 
+                src="/img/Hamburger_icon.png" 
+                width="24px" 
+                height="24px"
+                style={{ 
+                  filter: darkMode ? "brightness(0) invert(1)" : "none",
+                  transition: "transform 0.3s ease"
+                }}
+              />
+            </button>
+            <div className={`${styles.content} ${open ? styles.show : styles.hide}`}>
+              <Link to="/Profile">👤 Profile</Link>
+              <Link to="/Achievements">🏆 Achievements</Link>
+              <Link to="/Shop">🛒 Shop</Link>
+              <Link to="/Spin">🎰 Daily Spin</Link>
+              <Link to="/Battle">⚔️ Battle</Link>
+            </div>
+          </div>
+
           <div className={styles.petHeader}>
             <div>
-              <button style={{ backgroundColor: "transparent", border: "none" }} onClick={() => setOpen(!open)}>
-                <img src="/img/Hamburger_icon.png" width="30px"></img>
-              </button>
-              <div className={open ? styles.content : styles.hide}>
-                <Link to="/Profile">Profile</Link>
-                <Link to="/Achievements">Achievements</Link>
-                <Link to="/Shop">Shop</Link>
-                <Link to="/Spin">Daily Spin</Link>
-                <Link to="/Battle">Battle</Link>
-              </div>
+              {/* Hamburger menu moved to top left */}
             </div>
 
             <h2>{petData.name}</h2>

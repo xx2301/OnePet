@@ -17,7 +17,7 @@ export default function App(){
       <Route path="/" element={<ConnectWallet />}></Route>
       <Route path="/HomePage" element={<HomePage darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
       <Route path="/PetStats" element={<PetStats darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
-      <Route path="/Shop" element={<Shop tokenBalance={tokenBalance} setTokenBalance={setTokenBalance} inventory={inventory} setInventory={setInventory}/>}></Route>
+      <Route path="/Shop" element={<Shop darkMode={darkMode} setDarkMode={setDarkMode} tokenBalance={tokenBalance} setTokenBalance={setTokenBalance} inventory={inventory} setInventory={setInventory}/>}></Route>
       <Route path="/Spin" element={<Spin darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
       <Route path="/Battle" element={<Battle darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
       <Route path="/Profile" element={<Profile darkMode={darkMode} setDarkMode={setDarkMode} />}></Route>
