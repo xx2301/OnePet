@@ -65,7 +65,7 @@ module OnePet::reward_system {
     
     public fun update_daily_claim(daily_reward: &mut DailyReward, current_time: u64) {
         let time_since_last_claim = if (daily_reward.last_claim_time == 0) {
-            DAILY_REWARD_COOLDOWN + 1 // Force streak count to start
+            DAILY_REWARD_COOLDOWN + 1
         } else {
             current_time - daily_reward.last_claim_time
         };

@@ -58,8 +58,6 @@ module OnePet::inventory {
         length
     }
 
-    //PlayerInventory can only be created at own module (inventory) and can only transfer at the declaration of its own module
-    //for testing call and create inventory
     #[test_only]
     public fun create_test_inventory(owner: address, ctx: &mut TxContext): PlayerInventory {
         PlayerInventory {

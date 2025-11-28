@@ -180,16 +180,16 @@ module OnePet::profile_badge {
         
         let mut badge = create_test_profile(b"active_player", &mut ctx);
         
-        record_battle_win(&mut badge);        // +10 信誉，1 场胜利
-        record_pet_ownership(&mut badge);     // +5 信誉，1 个宠物
-        record_battle_win(&mut badge);        // +10 信誉，2 场胜利
-        update_reputation(&mut badge, 30);    // +30 信誉
-        record_pet_ownership(&mut badge);     // +5 信誉，2 个宠物
-        record_battle_win(&mut badge);        // +10 信誉，3 场胜利
+        record_battle_win(&mut badge);
+        record_pet_ownership(&mut badge);
+        record_battle_win(&mut badge);
+        update_reputation(&mut badge, 30);
+        record_pet_ownership(&mut badge);
+        record_battle_win(&mut badge);
         
         assert!(get_battles_won(&badge) == 3, 1);
         assert!(get_pets_owned(&badge) == 2, 2);
-        assert!(get_reputation(&badge) == 70, 3); // 10+5+10+30+5+10 = 70
+        assert!(get_reputation(&badge) == 70, 3); //10+5+10+30+5+10=70
         
         transfer_test_badge(badge, @0x0);
     }

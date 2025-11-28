@@ -110,12 +110,11 @@ module OnePet::pve_battle {
     fun test_create_monster() {
         let mut ctx = tx_context::dummy();
         
-        //create monster
         let monster = create_test_monster(5, b"Test Monster", &mut ctx);
         
         assert!(monster.level == 5, 1);
-        assert!(monster.health == 100, 2); // 5 * 20 = 100
-        assert!(monster.attack == 25, 3);  // 5 * 5 = 25
+        assert!(monster.health == 100, 2); //100
+        assert!(monster.attack == 25, 3);  //25
         
         transfer_test_monster(monster, @0x0);
     }
@@ -136,8 +135,8 @@ module OnePet::pve_battle {
         let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut badge, &mut ctx);
         
         assert!(result.winner == @0x1, 1);
-        assert!(result.exp_gained == 50, 2);  // 5 * 10 = 50
-        assert!(result.tokens_earned == 25, 3); // 5 * 5 = 25
+        assert!(result.exp_gained == 50, 2);  //5*10
+        assert!(result.tokens_earned == 25, 3); //5*5
         
         let new_pet_level = pet_stats::get_level(&pet);
         assert!(new_pet_level >= initial_pet_level, 4);
@@ -165,7 +164,7 @@ module OnePet::pve_battle {
         let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut badge, &mut ctx);
         
         assert!(result.winner == @0x0, 1);  //loss
-        assert!(result.exp_gained == 16, 2); //8*2 = 16
+        assert!(result.exp_gained == 16, 2); //8*2
         assert!(result.tokens_earned == 0, 3); //no token because loss
         
         let new_pet_level = pet_stats::get_level(&pet);
@@ -188,7 +187,7 @@ module OnePet::pve_battle {
         
         let result = start_pve_battle(@0x1, &mut pet, &mut monster, &mut stats, &mut badge, &mut ctx);
         
-        assert!(result.winner == @0x1, 1);  //pet won
+        assert!(result.winner == @0x1, 1); //pet won
         assert!(result.exp_gained == 70, 2); //7*10 = 70
         assert!(result.tokens_earned == 35, 3); //7*5 = 35
         
@@ -231,16 +230,16 @@ module OnePet::pve_battle {
         let mut ctx = tx_context::dummy();
         
         let monster1 = create_test_monster(1, b"Baby Monster", &mut ctx);
-        assert!(monster1.health == 20, 1);  // 1 * 20
-        assert!(monster1.attack == 5, 2);   // 1 * 5
+        assert!(monster1.health == 20, 1);
+        assert!(monster1.attack == 5, 2);
         
         let monster5 = create_test_monster(5, b"Medium Monster", &mut ctx);
-        assert!(monster5.health == 100, 3); // 5 * 20
-        assert!(monster5.attack == 25, 4);  // 5 * 5
+        assert!(monster5.health == 100, 3);
+        assert!(monster5.attack == 25, 4);
         
         let monster10 = create_test_monster(10, b"Boss Monster", &mut ctx);
-        assert!(monster10.health == 200, 5); // 10 * 20
-        assert!(monster10.attack == 50, 6);  // 10 * 5
+        assert!(monster10.health == 200, 5);
+        assert!(monster10.attack == 50, 6);
         
         transfer_test_monster(monster1, @0x0);
         transfer_test_monster(monster5, @0x0);

@@ -162,10 +162,8 @@ module OnePet::shop_system {
         //check the coin after deducted from user's wallet
         assert!(coin::value(&payment) == 80, WRONG_MONEY_LEFT); //100-20 = 80
         
-        // 先转移 global_stats
         stat_system::transfer_test_global_stats(global_stats, owner);
         
-        // 然后处理其他对象
         transfer::transfer(shop, owner);
         inventory::transfer_test_inventory(player_inventory, owner);
         coin::burn_for_testing(payment);
@@ -189,7 +187,6 @@ module OnePet::shop_system {
 
         buy_item(&mut shop, &mut player_inventory, 999, 1, &mut payment, &mut global_stats, &mut ctx);
         
-        // 先转移 global_stats
         stat_system::transfer_test_global_stats(global_stats, owner);
         
         transfer::transfer(shop, owner);
@@ -224,7 +221,6 @@ module OnePet::shop_system {
 
         buy_item(&mut shop, &mut player_inventory, 1, 1, &mut payment, &mut global_stats, &mut ctx);
         
-        // 先转移 global_stats
         stat_system::transfer_test_global_stats(global_stats, owner);
         
         transfer::transfer(shop, owner);

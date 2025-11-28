@@ -13,16 +13,16 @@
  - **CLOCK**=0x6
 
 ## Object ID (Old Version)
-- **UserState_ID**: 0xfb9094b1fb8dd4b4d753a9c6c1f88114e0d4bd8e92c4a3d0bd66c2f0245c5737
-- **PlayerInventory_ID**: 0xd0c686ff993adb22f105bbc4ef5b9c62f9789337347e1be9e439e0325d7fb827
-- **DailyTracker_ID**: 0x3c32b8133d074e12d9eae18fb7ffd5139463c6af6ebeeef4b14a0f1a753f8a04
-- **ActionCooldown_ID**: 0x711b7a83c399812455d73e5275b48b5a1cb4a09c46d932876fa0f4a1ad5d4def
-- **DailyReward_ID**: 0x23112adc34b3f7e340ac10cc6a24ae5a9e270b04ef1164d44a6547b5a7124ed6
-- **ProfileBadge_ID**: 0x8fd57e6f44c2c1f03f826f3198662433a7f4209862c703a98142f3ad9fe85f8c
-- **OCT_COIN_ID**: 0x0e1bd9861f3a4c2a8cd0a6373c4b7b4ea1281c67251abeb1868e23f48c6f4b12 **OR** 0x7f8c6325165138fe02ba9b1d166821c05144f077d619e308cfeaa23c191e6e19
-- **PET_NFT_ID**: "0x5075a3b47d2a76aafba67c085b7cc2e0690e8941c13e4a1d8670b10505ad453f" (First Pet) **OR** 0x17ac4f42015b8f0cd247f5f8cb66cd1f5ce903903f04bfccbed9d226942f070a (Second Pet)
-- **Monster_ID**: 0xa5d975dd3f8afef71a6f89027703c2e48c6155fc30b7440c16dea882707421d5 (Based on Pet Level) **OR** 0x8c850c3a831597e5905e760b6a828b3287b59c3380d2c523187b5fc5532d78ce (Custom Level)
-- **Achievement_ID**: 0x360585d76d53be55146484cdcce480efe0d8db6b6619e2e502ab9f8d4aaf77fd (for pet) **OR** 0x9eb7289536c8524a41ff048cf145c5111dfd6b226cd906e399b6f727438b6e75 (for battle)
+- **UserState_ID**: 0x20c1c351ad8c00f58ba4a31ac967f63ea8c5e86103fb25145a55eae11479438b
+- **PlayerInventory_ID**: 0x8442fb51a7b6b6d218ba83bb610b5febbfdedd24d00eaf3e94dba3ec1ea6a221
+- **DailyTracker_ID**: 0xfa12f06010b8d4330b6b6d0f03c69fe22bdfaaf4be4148d45a5a5090317ac999
+- **ActionCooldown_ID**: 0xf62d282b45f3f333972d89551096cf24b3f97295c7e705db3a577395625e7af3
+- **DailyReward_ID**: 0xdf4bf062a6748980feb42762d8b6e28efd473c4331b3f67534639c37b9973b96
+- **ProfileBadge_ID**: 0x69e897fa1efacbb2beea3026761e349acdb4b4f95d969ef61305f159f083714a
+- **OCT_COIN_ID**: 0x0e1bd9861f3a4c2a8cd0a6373c4b7b4ea1281c67251abeb1868e23f48c6f4b12 
+- **PET_NFT_ID**: 0xd6a9865d165daf7a163107ad38d99c846c5edabbef44da0312ea72e18705af04
+- **Monster_ID**: 0xa5d975dd3f8afef71a6f89027703c2e48c6155fc30b7440c16dea882707421d5
+- **Achievement_ID**: 0x360585d76d53be55146484cdcce480efe0d8db6b6619e2e502ab9f8d4aaf77fd
 
 ## Main functional modules
 - User Initialize: `user_initializer::initialize`
@@ -34,48 +34,19 @@
 ## Commands for functions:
 ### 1. User Initialization
 - ```one client ptb --move-call $PACKAGE_ID::user_initializer::initialize_user_account \"Username\" @$GlobalStats_ID --gas-budget 20000000```
-- Example: ``one client ptb --move-call 0x2ced6cfc13da95fae282142783617b958c3b98f63da4cf8ff9a21fb1f9683801::user_initializer::initialize_user_account \"FinalTest4\" @0x4662c834dea8c526efb375ebbbc429268a7d45e01a3d15a72fc8e4e186d2f7f6 --gas-budget 20000000``
-
-```javascript
-// Initialize all user objects at once
-const initTx = {
-  target: `${PACKAGE_ID}::user_initializer::initialize_user_account`,
-  arguments: ["username", globalStatsId],
-  typeArguments: []
-}
-```
+- Example: ``one client ptb --move-call 0xc28ae5613b99c0f81c24f8f7f21f1be620456f438522d026f95edac8b3a547f0::user_initializer::initialize_user_account \"FinalTest\" @0xcacb112af62966994bec03cb3b4abedaac5922eb366dea2de37ecba895655fe5 --gas-budget 20000000``
 
 ### Create First Pet
 - ```one client ptb --move-call $PACKAGE_ID::pet_stats::create_first_pet @$UserState_ID \"PetName\" 0 @$GlobalStats_ID --gas-budget 20000000```
-- Example: ```one client ptb --move-call 0x2ced6cfc13da95fae282142783617b958c3b98f63da4cf8ff9a21fb1f9683801::pet_stats::create_first_pet @0xfb9094b1fb8dd4b4d753a9c6c1f88114e0d4bd8e92c4a3d0bd66c2f0245c5737 \"Bobby3\" 0 @0x4662c834dea8c526efb375ebbbc429268a7d45e01a3d15a72fc8e4e186d2f7f6 --gas-budget 20000000```
-
-```javascript
-// Create first free pet
-const createPetTx = {
-  target: `${PACKAGE_ID}::pet_stats::create_first_pet`,
-  arguments: [userStateId, "PetName", petType, globalStatsId],
-  typeArguments: []
-}
-// Pet Types: 0=Dog, 1=Cat, 2=Rabbit, 3=Hamster
-```
+- Example: ```one client ptb --move-call 0xc28ae5613b99c0f81c24f8f7f21f1be620456f438522d026f95edac8b3a547f0::pet_stats::create_first_pet @0x20c1c351ad8c00f58ba4a31ac967f63ea8c5e86103fb25145a55eae11479438b \"Bobby3\" 0 @0xcacb112af62966994bec03cb3b4abedaac5922eb366dea2de37ecba895655fe5 --gas-budget 20000000```
 
 ### Create Additional Pet
-- ```one client ptb --move-call $PACKAGE_ID::pet_stats::create_additional_pet \"PetName\" 0 @$OCT_COIN_ID @$GlobalStats_ID --gas-budget 20000000```
+- ```one client ptb --move-call $PACKAGE_ID::pet_stats::create_additional_pet @$UserState_ID \"PetName\" 0 @$OCT_COIN_ID @$GlobalStats_ID --gas-budget 20000000```
 - Example: ```one client ptb --move-call 0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8::pet_stats::create_additional_pet \"Bunny\" 2 @0x0e1bd9861f3a4c2a8cd0a6373c4b7b4ea1281c67251abeb1868e23f48c6f4b12 @0x92c142475a05d031d2993b251ba61e9d92a2196039d72b116ee2635e5985e439 --gas-budget 20000000```
 
 ### Buy Item
 - ```one client ptb --move-call $PACKAGE_ID::shop_system::buy_item @$SHOPSYSTEM_ID @$PlayerInventory_ID 1 1 @$OCT_COIN_ID @$GlobalStats_ID --gas-budget 20000000```
 - Example: ```one client ptb --move-call 0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8::shop_system::buy_item @0x2651ddd9613f800d52e1290c4884c0c312dfcf67077acdbe81701ef663b2a705 @0x633d7caa8608af03d9ea0b7f96552213b314d1c1a49a0d5dd99039bf7ea882fa 1 1 @0x0e1bd9861f3a4c2a8cd0a6373c4b7b4ea1281c67251abeb1868e23f48c6f4b12 @0x92c142475a05d031d2993b251ba61e9d92a2196039d72b116ee2635e5985e439 --gas-budget 20000000```
-
-```javascript
-// Buy items from shop
-const buyTx = {
-  target: `${PACKAGE_ID}::shop_system::buy_item`,
-  arguments: [shopId, inventoryId, itemId, quantity, coinId, globalStatsId],
-  typeArguments: []
-}
-// Item IDs: 1=Food, 2=Toy, 3=Drink, 4=Medicine
-```
 
 ### Feed Pet
 - ```one client ptb --move-call $PACKAGE_ID::pet_stats::feed_pet @$PET_NFT_ID @$ActionCooldown_ID @$PlayerInventory_ID @$GlobalStats_ID @0x6 --gas-budget 20000000```
@@ -103,23 +74,26 @@ const buyTx = {
 
 ### Create Monster
 - ```one client ptb --move-call $PACKAGE_ID::pve_battle::create_monster_based_on_pet_level @$PET_NFT_ID \"MonsterName\" --gas-budget 20000000```
-- Example: ```one client ptb --move-call 0xa61c20b4a567bb391a41c556cfeb579a53118eabef837d6964c464dacb35b6a8::pve_battle::create_monster_based_on_pet_level @0x198ef4c8f75355cfbd682d31977346b97af40b29a1c7bab35c8ef6da490711e0 \"Goblin\" --gas-budget 20000000```
+- Example: ```one client ptb --move-call 0xc28ae5613b99c0f81c24f8f7f21f1be620456f438522d026f95edac8b3a547f0::pve_battle::create_monster_based_on_pet_level @0xd6a9865d165daf7a163107ad38d99c846c5edabbef44da0312ea72e18705af04 \"Goblin\" --gas-budget 20000000```
 
 ### Start battle (PVE)
 - ```one client ptb --move-call $PACKAGE_ID::pve_battle::start_pve_battle @$MY_ADDRESS @$PET_NFT_ID @$Monster_ID @$GlobalStats_ID --gas-budget 20000000```
 - Example: ```one client ptb --move-call 0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8::pve_battle::start_pve_battle @0x142fea65962ec5ca8cc86e94d3b799b12090f3bf4946815728322387435af893 @0x52262408f0372d14b4506716e65859ea54e105db7ab2076bc68b014ecafaa08e @0x9f1c95eb1585cfc6a1a0a8ccfcfb69fb70f71092aec7f0747a2d8b8c0f9b0d90 @0x92c142475a05d031d2993b251ba61e9d92a2196039d72b116ee2635e5985e439 --gas-budget 20000000```
 
-### Create Archievement (Creation of Pet)
+### Create Achievement (Creation of Pet)
 - ```one client ptb --move-call $PACKAGE_ID::reward_system::create_achievement 0 --gas-budget 20000000```
 - Example: ```one client ptb --move-call 0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8::reward_system::create_achievement 0 --gas-budget 20000000```
 
-### Create Archievement (Battle)
+### Create Achievement (Battle)
 - ```one client ptb --move-call $PACKAGE_ID::reward_system::create_achievement 1 --gas-budget 20000000```
 - Example: ```one client ptb --move-call 0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8::reward_system::create_achievement 1 --gas-budget 20000000```
 
 ### Claim Reward for Archievement (Creation of Pet)
-- ```one client ptb --move-call $PACKAGE_ID::reward_system::check_achievement @$Achievement_ID @$PlayerInventory_ID @$ProfileBadge_ID --gas-budget 20000000```
+- ```one client ptb --move-call $PACKAGE_ID::reward_system::claim_achievement_reward @$Achievement_ID @$PlayerInventory_ID @$ProfileBadge_ID --gas-budget 20000000```
 - Example: ```one client ptb --move-call 0x6041bd28661097a56c5f044a6030e142e78c7a85107120914b152fa1d52a15e8::reward_system::check_achievement @0x360585d76d53be55146484cdcce480efe0d8db6b6619e2e502ab9f8d4aaf77fd @0x633d7caa8608af03d9ea0b7f96552213b314d1c1a49a0d5dd99039bf7ea882fa @0x79fbced01e8867a8e0be5253c2c81f12c5a29e8708b9651e65ce5bee0044f824 --gas-budget 20000000```
+
+### Mark Achievement Complete
+- ```one client ptb --move-call $PACKAGE_ID::reward_system::mark_achievement_complete @$Achievement_ID --gas-budget 20000000```
 
 ### Level Up Pet
 - ```one client ptb --move-call $PACKAGE_ID::pet_stats::level_up @$PET_NFT_ID 100 --gas-budget 20000000```
