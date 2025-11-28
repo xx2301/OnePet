@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import styles from "./Shop.module.css";
 import Header from "./Header";
-import { getUserObjects, buyShopItem, getOCTBalance, removeItemFromInventory, buyAdditionalPet } from "./services/onePetApi";
+import { getUserObjects, buyShopItem, getOCTBalance, buyAdditionalPet } from "./services/onePetApi";
 import { SHOP_SYSTEM_ID } from "./constants";
 
 export default function Shop({ darkMode, setDarkMode }) {
@@ -12,10 +12,10 @@ export default function Shop({ darkMode, setDarkMode }) {
   const [userResources, setUserResources] = useState({ inventories: [], pets: [], userState: null });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [selectedPet, setSelectedPet] = useState(null);
   const [showPetModal, setShowPetModal] = useState(false);
   const [selectedPetType, setSelectedPetType] = useState(null);
   const [newPetName, setNewPetName] = useState("");
+  const [quantities, setQuantities] = useState({});
 
   const availablePets = [
     { type: 0, name: "Dog", emoji: "🐶", price: 50 },
@@ -115,11 +115,6 @@ export default function Shop({ darkMode, setDarkMode }) {
       }
       setUserResources(resources);
       setInventory(inventoryItems);
-      
-      // Auto-select first pet if not already selected
-      if (!selectedPet && resources.pets.length > 0) {
-        setSelectedPet(resources.pets[0].id);
-      }
     } catch (err) {
       console.error('Failed to load shop data:', err);
     }
@@ -156,6 +151,23 @@ export default function Shop({ darkMode, setDarkMode }) {
     },
   ]);
 
+  // Initialize quantities to 1 for each item
+  useEffect(() => {
+    const initialQuantities = {};
+    items.forEach(item => {
+      initialQuantities[item.id] = 1;
+    });
+    setQuantities(initialQuantities);
+  }, []);
+
+  const handleQuantityChange = (itemId, value) => {
+    const numValue = Math.max(1, parseInt(value) || 1);
+    setQuantities(prev => ({
+      ...prev,
+      [itemId]: numValue
+    }));
+  };
+
   const handleBuy = async (item) => {
     if (loading) return;
 
@@ -165,8 +177,11 @@ export default function Shop({ darkMode, setDarkMode }) {
       return;
     }
 
-    if (petTokenBalance < item.price) {
-      setMessage("❌ Not enough PetTokens!");
+    const quantity = quantities[item.id] || 1;
+    const totalCost = item.price * quantity;
+
+    if (petTokenBalance < totalCost) {
+      setMessage(`❌ Not enough PetTokens! Need ${totalCost} but you have ${Math.round(petTokenBalance)}`);
       return;
     }
 
@@ -203,11 +218,11 @@ export default function Shop({ darkMode, setDarkMode }) {
         SHOP_SYSTEM_ID,
         inventoryId,
         item.id,
-        1, // quantity
+        quantity,
         paymentCoinId
       );
 
-      setMessage(`✅ You bought ${item.name}!`);
+      setMessage(`✅ You bought ${quantity}x ${item.name}!`);
       
       // Refresh balance and inventory after purchase
       setTimeout(() => {
@@ -226,45 +241,6 @@ export default function Shop({ darkMode, setDarkMode }) {
   // Count items by ID
   const getItemCount = (itemId) => {
     return inventory.filter(id => id === itemId).length;
-  };
-
-  // Use item from inventory
-  const handleUseItem = async (itemId) => {
-    if (loading) return;
-    
-    const inventoryId = userResources.inventories[0];
-    if (!inventoryId) {
-      setMessage("❌ Inventory not found.");
-      return;
-    }
-
-    if (!selectedPet) {
-      setMessage("❌ Please select a pet first.");
-      return;
-    }
-
-    const itemInfo = items.find(i => i.id === itemId);
-    if (!itemInfo) return;
-
-    try {
-      setLoading(true);
-      setMessage(`⏳ Using ${itemInfo.name}...`);
-
-      // Remove item from inventory
-      await removeItemFromInventory(inventoryId, itemId);
-
-      setMessage(`✅ Used ${itemInfo.name}! ${itemInfo.effect}`);
-      
-      // Refresh inventory after use
-      setTimeout(() => {
-        loadShopData();
-      }, 2000);
-    } catch (error) {
-      console.error('Use item error:', error);
-      setMessage(`❌ Failed to use item: ${error.message || 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Handle pet purchase button click
@@ -410,7 +386,16 @@ export default function Shop({ darkMode, setDarkMode }) {
               <h3>{item.name}</h3>
               <p className={styles.effect}>{item.effect}</p>
               <p className={styles.price}>{item.price} PetToken</p>
-              <p className={styles.owned}>Owned: {getItemCount(item.id)}</p>
+              <div style={{ margin: '0.5rem 0' }}>
+                <label style={{ fontSize: '0.9rem', marginRight: '0.5rem' }}>Quantity:</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantities[item.id] || 1}
+                  onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                  style={{ width: '60px', padding: '0.2rem', textAlign: 'center' }}
+                />
+              </div>
               <button 
                 className={styles.shopButton} 
                 onClick={() => handleBuy(item)}
@@ -424,22 +409,6 @@ export default function Shop({ darkMode, setDarkMode }) {
 
         <h2 style={{ textAlign: 'center', marginTop: '2rem' }}>🎒 Your Inventory</h2>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {userResources.pets.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label>Use items on:</label>
-              <select 
-                value={selectedPet || ''} 
-                onChange={(e) => setSelectedPet(e.target.value)}
-                style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-              >
-                {userResources.pets.map((pet) => (
-                  <option key={pet.id} value={pet.id}>
-                    {pet.name} (HP: {pet.health})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
           <button 
             onClick={loadShopData} 
             className={styles.shopButton}
@@ -461,14 +430,6 @@ export default function Shop({ darkMode, setDarkMode }) {
                   <h4>{item.name}</h4>
                   <p>Quantity: {count}</p>
                   <p className={styles.effect}>{item.effect}</p>
-                  <button 
-                    className={styles.shopButton}
-                    onClick={() => handleUseItem(item.id)}
-                    disabled={loading || !selectedPet}
-                    style={{ marginTop: '0.5rem' }}
-                  >
-                    {loading ? 'Using...' : 'Use'}
-                  </button>
                 </div>
               );
             })}
